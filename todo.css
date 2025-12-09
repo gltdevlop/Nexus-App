@@ -230,6 +230,7 @@
     transition: all 0.3s ease;
     border-radius: 10px;
     margin-bottom: 2px;
+    max-width: 800px;
 }
 
 .task-list li:hover {
@@ -240,10 +241,9 @@
 input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 24px;
-    height: 24px;
+    height: 35px;
     border: 2px solid var(--border-color);
-    border-radius: 50%;
+    border-radius: 100px;
     margin-right: 15px;
     cursor: pointer;
     position: relative;
@@ -304,12 +304,12 @@ input[type="checkbox"]:checked::after {
 }
 
 .task-due-date {
-    color: var(--error-color);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
-.task-due-date.future {
-    color: var(--text-secondary);
+.task-due-date.overdue {
+    color: var(--error-color);
 }
 
 .task-list-name {

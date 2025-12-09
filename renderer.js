@@ -1645,8 +1645,20 @@ window.addEventListener('DOMContentLoaded', () => {
                     // Date formatting
                     const dateOptions = { month: 'long', day: 'numeric' };
                     if (task.dueDate && new Date(task.dueDate).getFullYear() !== new Date().getFullYear()) dateOptions.year = 'numeric';
+
+                    // Check if overdue (compare dates only, not time)
+                    let isOverdue = false;
+                    if (task.dueDate && !task.completed) {
+                        const dueDate = new Date(task.dueDate);
+                        const today = new Date();
+                        // Set both to midnight for date-only comparison
+                        dueDate.setHours(0, 0, 0, 0);
+                        today.setHours(0, 0, 0, 0);
+                        isOverdue = dueDate < today;
+                    }
+
                     const dueDateHtml = task.dueDate ?
-                        `<span class="task-due-date ${new Date(task.dueDate) < new Date() && !task.completed ? 'overdue' : ''}">
+                        `<span class="task-due-date ${isOverdue ? 'overdue' : ''}">
                             ${new Date(task.dueDate).toLocaleDateString('fr-FR', dateOptions)}
                          </span>` : '';
 
