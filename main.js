@@ -2,103 +2,127 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// --- Chemins de sauvegarde ---
+const userDataPath = app.getPath('userData');
+const servicesFilePath = path.join(userDataPath, 'services.json');
+const todoFilePath = path.join(userDataPath, 'todo.json');
 
-let win;
-
-const createWindow = () => {
-  win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-    },
-  });
-
-  
-
-  win.loadFile('index.html');
-};
-
-let settingsWindow;
-
-const createSettingsWindow = (parentWindow) => {
-    settingsWindow = new BrowserWindow({
-        width: 600,
-        height: 400,
-        parent: parentWindow,
-        modal: true,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-        },
-    });
-    settingsWindow.loadFile('settings.html');
-};
-
-ipcMain.on('open-settings-window', () => {
-    if (settingsWindow) {
-        settingsWindow.focus();
-    } else {
-        createSettingsWindow(win);
-    }
-});
 
 app.whenReady().then(() => {
-  createWindow();
+  const userDataPath = app.getPath('userData');
+  const servicesFilePath = path.join(userDataPath, 'services.json');
+  const todoFilePath = path.join(userDataPath, 'todo.json');
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+  createWindow();
+  app.on('activate', function () {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+
+  app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit();
+  });
+  
+  // --- Communication IPC pour les Services ---
+
+  const defaultServices = [
+    {
+      name: "ToDo",
+      url: "internal://todo" // URL spéciale pour identifier un service interne
+    }
+  ];
+
+  ipcMain.handle('get-services', async () => {
+    if (!fs.existsSync(servicesFilePath)) {
+      // Le fichier n'existe pas, on le crée avec les services par défaut
+      fs.writeFileSync(servicesFilePath, JSON.stringify(defaultServices, null, 2));
+      return defaultServices;
+    }
+
+    try {
+      const data = fs.readFileSync(servicesFilePath, 'utf8');
+      const services = JSON.parse(data);
+
+      // Vérifie si le service ToDo est déjà dans la liste
+      const hasTodoService = services.some(service => service.url === 'internal://todo');
+      if (!hasTodoService) {
+        services.unshift(defaultServices[0]);
+        fs.writeFileSync(servicesFilePath, JSON.stringify(services, null, 2), 'utf8');
+      }
+      return services;
+    } catch (error) {
+      console.error("Erreur de parsing pour services.json:", error);
+      // Le fichier est corrompu, on le sauvegarde et on repart de zéro.
+      const backupPath = servicesFilePath + '.bak';
+      fs.renameSync(servicesFilePath, backupPath);
+      console.log(`Fichier corrompu sauvegardé dans ${backupPath}`);
+      // On repart avec les services par défaut
+      fs.writeFileSync(servicesFilePath, JSON.stringify(defaultServices, null, 2));
+      return defaultServices;
+    }
+  });
+
+  ipcMain.handle('save-services', async (event, services) => {
+    try {
+      fs.writeFileSync(servicesFilePath, JSON.stringify(services, null, 2), 'utf8');
+      return { success: true };
+    } catch (error) {
+      console.error("Erreur (save-services):", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+
+  // --- Communication IPC pour la ToDo List ---
+
+  ipcMain.handle('get-todos', async () => {
+    const emptyTodoData = { lists: [], tasks: [] };
+    if (!fs.existsSync(todoFilePath)) {
+      return emptyTodoData;
+    }
+
+    try {
+      const data = fs.readFileSync(todoFilePath, 'utf8');
+      const jsonData = JSON.parse(data);
+
+      // Rétrocompatibilité
+      if (Array.isArray(jsonData)) {
+        const newStructure = { lists: [], tasks: jsonData };
+        fs.writeFileSync(todoFilePath, JSON.stringify(newStructure, null, 2), 'utf8');
+        return newStructure;
+      }
+      return jsonData;
+    } catch (error) {
+      console.error("Erreur de parsing pour todo.json:", error);
+      const backupPath = todoFilePath + '.bak';
+      fs.renameSync(todoFilePath, backupPath);
+      console.log(`Fichier corrompu sauvegardé dans ${backupPath}`);
+      return emptyTodoData;
+    }
+  });
+
+  ipcMain.handle('save-todos', async (event, todoData) => {
+    try {
+      fs.writeFileSync(todoFilePath, JSON.stringify(todoData, null, 2), 'utf8');
+      return { success: true };
+    } catch (error) {
+      console.error("Erreur (save-todos):", error);
+      return { success: false, error: error.message };
     }
   });
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+function createWindow () {
+    const mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+        webviewTag: true,
+      }
+    });
+  
+    mainWindow.loadFile('index.html');
+    // mainWindow.webContents.openDevTools();
   }
-});
-
-const tabsFilePath = path.join(app.getPath('userData'), 'tabs.json');
-
-ipcMain.handle('get-tabs', async () => {
-  try {
-    return fs.readFileSync(tabsFilePath, 'utf-8');
-  } catch (error) {
-    // If the file doesn't exist, return default tabs
-    return JSON.stringify([
-      { id: 'home', name: 'Accueil' }
-    ]);
-  }
-});
-
-ipcMain.handle('save-tabs', async (event, tabs) => {
-  fs.writeFileSync(tabsFilePath, JSON.stringify(tabs, null, 2));
-});
-
-const contentFilePath = (tabId) => path.join(app.getPath('userData'), `${tabId}.html`);
-
-ipcMain.handle('get-tab-content', async (event, tabId) => {
-    try {
-        return fs.readFileSync(contentFilePath(tabId), 'utf-8');
-    } catch (error) {
-        return '';
-    }
-});
-
-ipcMain.handle('save-tab-content', async (event, { tabId, content }) => {
-    fs.writeFileSync(contentFilePath(tabId), content);
-});
-
-const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
-
-ipcMain.handle('get-settings', async () => {
-    try {
-        return fs.readFileSync(settingsFilePath, 'utf-8');
-    } catch (error) {
-        return JSON.stringify({});
-    }
-});
-
-ipcMain.handle('save-settings', async (event, settings) => {
-    fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
-});
