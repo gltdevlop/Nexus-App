@@ -11,5 +11,10 @@
   "license": "ISC",
   "devDependencies": {
     "electron": "^31.0.1"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^167.0.0",
+    "webdav": "^5.8.0"
   }
 }

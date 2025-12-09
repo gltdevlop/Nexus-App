@@ -2,18 +2,27 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// INTERNAL MODULES
+const setupTodo = require('./internal/todo');
+const setupWebdav = require('./internal/webdav');
+const setupGdrive = require('./internal/gdrive');
+
 // --- Chemins de sauvegarde ---
 const userDataPath = app.getPath('userData');
 const servicesFilePath = path.join(userDataPath, 'services.json');
-const todoFilePath = path.join(userDataPath, 'todo.json');
-
+const firstUseFilePath = path.join(userDataPath, 'firstUse.json');
 
 app.whenReady().then(() => {
   const userDataPath = app.getPath('userData');
-  const servicesFilePath = path.join(userDataPath, 'services.json');
-  const todoFilePath = path.join(userDataPath, 'todo.json');
+  // Re-define is redundant but harmless, keeping variables in scope if needed.
 
   createWindow();
+
+  // Initialize Internal Modules
+  setupTodo(ipcMain, userDataPath);
+  setupWebdav(ipcMain, userDataPath);
+  setupGdrive(ipcMain, userDataPath);
+
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -21,13 +30,21 @@ app.whenReady().then(() => {
   app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
   });
-  
+
   // --- Communication IPC pour les Services ---
 
   const defaultServices = [
     {
       name: "ToDo",
-      url: "internal://todo" // URL spéciale pour identifier un service interne
+      url: "internal://todo"
+    },
+    {
+      name: "Fichiers WebDAV",
+      url: "internal://files"
+    },
+    {
+      name: "Plus de services",
+      url: "internal://add-service"
     }
   ];
 
@@ -42,10 +59,31 @@ app.whenReady().then(() => {
       const data = fs.readFileSync(servicesFilePath, 'utf8');
       const services = JSON.parse(data);
 
+      let changed = false;
+
+      // Migration: Renommer l'ancien nom "Fichiers" ou "Fichier actuel" en "Fichier WebDAV"
+      services.forEach(s => {
+        if (s.url === 'internal://files' && (s.name === 'Fichiers' || s.name === 'Fichier actuel')) {
+          s.name = 'Fichiers WebDAV';
+          changed = true;
+        }
+      });
+
       // Vérifie si le service ToDo est déjà dans la liste
       const hasTodoService = services.some(service => service.url === 'internal://todo');
       if (!hasTodoService) {
-        services.unshift(defaultServices[0]);
+        services.unshift({ name: "ToDo", url: "internal://todo" });
+        changed = true;
+      }
+
+      // Vérifie si le service Files est déjà dans la liste
+      const hasFilesService = services.some(service => service.url === 'internal://files');
+      if (!hasFilesService) {
+        services.splice(1, 0, { name: "Fichiers WebDAV", url: "internal://files" });
+        changed = true;
+      }
+
+      if (changed) {
         fs.writeFileSync(servicesFilePath, JSON.stringify(services, null, 2), 'utf8');
       }
       return services;
@@ -71,58 +109,41 @@ app.whenReady().then(() => {
     }
   });
 
-
-  // --- Communication IPC pour la ToDo List ---
-
-  ipcMain.handle('get-todos', async () => {
-    const emptyTodoData = { lists: [], tasks: [] };
-    if (!fs.existsSync(todoFilePath)) {
-      return emptyTodoData;
-    }
-
-    try {
-      const data = fs.readFileSync(todoFilePath, 'utf8');
-      const jsonData = JSON.parse(data);
-
-      // Rétrocompatibilité
-      if (Array.isArray(jsonData)) {
-        const newStructure = { lists: [], tasks: jsonData };
-        fs.writeFileSync(todoFilePath, JSON.stringify(newStructure, null, 2), 'utf8');
-        return newStructure;
-      }
-      return jsonData;
-    } catch (error) {
-      console.error("Erreur de parsing pour todo.json:", error);
-      const backupPath = todoFilePath + '.bak';
-      fs.renameSync(todoFilePath, backupPath);
-      console.log(`Fichier corrompu sauvegardé dans ${backupPath}`);
-      return emptyTodoData;
-    }
+  // --- First Use Handlers ---
+  ipcMain.handle('check-first-use', async () => {
+    return !fs.existsSync(firstUseFilePath);
   });
 
-  ipcMain.handle('save-todos', async (event, todoData) => {
+  ipcMain.handle('complete-first-use', async () => {
     try {
-      fs.writeFileSync(todoFilePath, JSON.stringify(todoData, null, 2), 'utf8');
+      fs.writeFileSync(firstUseFilePath, JSON.stringify({ completed: true, date: new Date().toISOString() }, null, 2));
       return { success: true };
     } catch (error) {
-      console.error("Erreur (save-todos):", error);
+      console.error("Erreur (complete-first-use):", error);
       return { success: false, error: error.message };
     }
   });
 });
 
-function createWindow () {
-    const mainWindow = new BrowserWindow({
-      width: 1200,
-      height: 800,
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        nodeIntegration: false,
-        contextIsolation: true,
-        webviewTag: true,
-      }
-    });
-  
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webviewTag: true,
+    }
+  });
+
+  // Check if this is the first use
+  const isFirstUse = !fs.existsSync(firstUseFilePath);
+
+  if (isFirstUse) {
+    mainWindow.loadFile('onboarding.html');
+  } else {
     mainWindow.loadFile('index.html');
-    // mainWindow.webContents.openDevTools();
   }
+  // mainWindow.webContents.openDevTools();
+}

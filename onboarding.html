@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue - AppMaster</title>
+    <link rel="stylesheet" href="onboarding.css">
+</head>
+
+<body>
+    <div class="onboarding-container">
+        <!-- Step 1: Welcome -->
+        <div class="onboarding-step active" id="step-welcome">
+            <div class="step-content">
+                <h1>👋 Bienvenue dans AppMaster</h1>
+                <p>Configurons ensemble votre espace de travail en quelques étapes simples.</p>
+                <button class="primary-btn" id="btn-start">Commencer</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Service Selection -->
+        <div class="onboarding-step" id="step-service-selection">
+            <div class="step-content">
+                <h1>Choisissez votre service de stockage</h1>
+                <p>Sélectionnez le service que vous souhaitez utiliser pour synchroniser vos fichiers.</p>
+                <div class="service-options">
+                    <button class="service-option" data-service="webdav">
+                        <div class="service-icon">☁️</div>
+                        <div class="service-name">WebDAV</div>
+                        <div class="service-desc">Nextcloud, ownCloud, etc.</div>
+                    </button>
+                    <button class="service-option" data-service="gdrive">
+                        <div class="service-icon">📁</div>
+                        <div class="service-name">Google Drive</div>
+                        <div class="service-desc">Stockage Google</div>
+                    </button>
+                </div>
+                <button class="secondary-btn" id="btn-skip-service">Passer cette étape</button>
+            </div>
+        </div>
+
+        <!-- Step 3a: WebDAV Configuration -->
+        <div class="onboarding-step" id="step-webdav-config">
+            <div class="step-content">
+                <h1>Configuration WebDAV</h1>
+                <p>Entrez les informations de connexion à votre serveur WebDAV.</p>
+                <div class="form-group">
+                    <label for="webdav-url">URL du serveur</label>
+                    <input type="text" id="webdav-url"
+                        placeholder="https://cloud.example.com/remote.php/dav/files/username/">
+                </div>
+                <div class="form-group">
+                    <label for="webdav-username">Nom d'utilisateur</label>
+                    <input type="text" id="webdav-username" placeholder="username">
+                </div>
+                <div class="form-group">
+                    <label for="webdav-password">Mot de passe</label>
+                    <input type="password" id="webdav-password" placeholder="••••••••">
+                </div>
+                <div class="button-group">
+                    <button class="secondary-btn" id="btn-skip-webdav">Passer</button>
+                    <button class="primary-btn" id="btn-save-webdav">Continuer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3b: Google Drive Configuration -->
+        <div class="onboarding-step" id="step-gdrive-config">
+            <div class="step-content">
+                <h1>Configuration Google Drive</h1>
+                <p>Configurez l'accès à Google Drive en deux étapes.</p>
+
+                <h3>Étape 1 : Identifiants</h3>
+                <p class="info-text">Obtenez vos identifiants depuis la <a href="#" id="link-gdrive-console">Google
+                        Cloud Console</a>.</p>
+
+                <div class="alert-box">
+                    <strong>⚠️ Important :</strong>
+                    <ul>
+                        <li>Activez "Google Drive API" dans la bibliothèque</li>
+                        <li>URI de redirection : <code>http://localhost:3000/oauth2callback</code></li>
+                        <li>Ajoutez votre email dans les utilisateurs test</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label for="gdrive-client-id">Client ID</label>
+                    <input type="text" id="gdrive-client-id" placeholder="...apps.googleusercontent.com">
+                </div>
+                <div class="form-group">
+                    <label for="gdrive-client-secret">Client Secret</label>
+                    <input type="password" id="gdrive-client-secret" placeholder="Client Secret">
+                </div>
+
+                <h3>Étape 2 : Connexion</h3>
+                <p class="info-text">Cliquez pour autoriser l'application (une page web s'ouvrira).</p>
+                <button class="primary-btn" id="btn-gdrive-auth" style="width: 100%; margin-bottom: 15px;">Connexion
+                    Google</button>
+                <div id="gdrive-status" class="status-text"></div>
+
+                <div class="button-group">
+                    <button class="secondary-btn" id="btn-skip-gdrive">Passer</button>
+                    <button class="primary-btn" id="btn-save-gdrive" disabled>Continuer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Add Website (Optional) -->
+        <div class="onboarding-step" id="step-add-website">
+            <div class="step-content">
+                <h1>Ajouter un site web</h1>
+                <p>Vous pouvez ajouter un site web à votre espace de travail (optionnel).</p>
+                <div class="form-group">
+                    <label for="website-name">Nom du site</label>
+                    <input type="text" id="website-name" placeholder="Ex: Mon Drive">
+                </div>
+                <div class="form-group">
+                    <label for="website-url">URL</label>
+                    <input type="text" id="website-url" placeholder="https://example.com">
+                </div>
+                <div class="button-group">
+                    <button class="secondary-btn" id="btn-skip-website">Passer</button>
+                    <button class="primary-btn" id="btn-save-website">Ajouter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Completion -->
+        <div class="onboarding-step" id="step-complete">
+            <div class="step-content">
+                <h1>C'est tout bon !</h1>
+                <p>Votre espace de travail est prêt. Commençons !</p>
+                <button class="primary-btn" id="btn-finish">Accéder à l'application</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="onboarding.js"></script>
+</body>
+
+</html>

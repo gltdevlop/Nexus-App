@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>AppMaster</title>
@@ -7,7 +8,9 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="todo.css">
     <link rel="stylesheet" href="calendar.css">
+    <link rel="stylesheet" href="files.css">
 </head>
+
 <body>
 
     <div class="app-container">
@@ -32,6 +35,9 @@
             <div id="todo-app-container" style="display: none;">
                 <!-- Le contenu de l'application ToDo sera injecté ici -->
             </div>
+            <div id="files-app-container" style="display: none;">
+                <!-- Le contenu de l'application Files sera injecté ici -->
+            </div>
         </div>
     </div>
 
@@ -43,6 +49,15 @@
             <input type="text" id="service-name-input" placeholder="Ex: Mon Drive">
             <label for="service-url-input">URL</label>
             <input type="text" id="service-url-input" placeholder="Ex: https://nextcloud.example.com">
+
+            <label for="service-internal-select">Ou choisir un service interne</label>
+            <select id="service-internal-select" style="width: 100%; padding: 8px; margin-bottom: 15px;">
+                <option value="">-- Sélectionner --</option>
+                <option value="internal://todo">ToDo List</option>
+                <option value="internal://files">Fichiers WebDAV</option>
+                <option value="internal://gdrive">Fichiers GDrive</option>
+            </select>
+
             <div class="modal-actions">
                 <button id="config-cancel-btn">Annuler</button>
                 <button id="config-ok-btn">OK</button>
@@ -65,14 +80,109 @@
 
     <!-- Fenêtre modale pour les réglages -->
     <div id="settings-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <h2>Réglages</h2>
-            <div class="settings-body">
-                <p>Gérer les infos, préférences, etc.</p>
-                <!-- Contenu des réglages ici -->
+        <div class="modal-content settings-modal-content">
+            <div class="settings-container">
+                <div class="settings-sidebar">
+                    <ul>
+                        <li class="active" data-section="files">Fichiers WebDAV</li>
+                        <li data-section="gdrive">Fichiers GDrive</li>
+                        <!-- Future sections: <li data-section="general">Général</li> -->
+                    </ul>
+                </div>
+                <div class="settings-content-wrapper">
+                    <h2>Réglages</h2>
+
+                    <!-- Section Fichiers -->
+                    <div id="settings-section-files" class="settings-section">
+                        <h3>Affichage</h3>
+                        <div class="setting-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-show-hidden">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="setting-label">Afficher les fichiers cachés (commençant par . ou ._)</span>
+                        </div>
+
+                        <h3>Connexion WebDAV</h3>
+                        <p class="setting-desc">Nécessaire pour le service 'Fichiers WebDAV'.</p>
+                        <div class="form-group">
+                            <label>URL</label>
+                            <input type="text" id="settings-dav-url" placeholder="https://..." style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Utilisateur</label>
+                            <input type="text" id="settings-dav-user" placeholder="username" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Mot de passe</label>
+                            <input type="password" id="settings-dav-pass" placeholder="password" style="width: 100%;">
+                        </div>
+                    </div>
+
+                    <!-- Section GDrive -->
+                    <div id="settings-section-gdrive" class="settings-section" style="display:none;">
+                        <h3>Google Drive</h3>
+                        <div class="setting-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-gdrive-show-hidden">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="setting-label">Afficher les fichiers cachés</span>
+                        </div>
+
+                        <h3>Authentification Google Drive</h3>
+                        <p class="setting-desc">Suivez ces deux étapes pour configurer l'accès.</p>
+
+                        <h4>Étape 1 : Identifiants</h4>
+                        <p class="setting-desc" style="font-size: 0.85em;">Copiez ici le Client ID et le Client Secret
+                            depuis votre <a href="#"
+                                onclick="require('electron').shell.openExternal('https://console.cloud.google.com/apis/credentials')">Google
+                                Cloud Console</a>.</p>
+
+                        <div
+                            style="background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; padding: 10px; margin-bottom: 15px; font-size: 0.85em; color: #ddd;">
+                            <strong>Attention :</strong> Assurez-vous d'avoir configuré ceci dans la console Google :
+                            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                                <li><strong>Activer l'API :</strong> Allez dans "Bibliothèque" et activez "Google Drive
+                                    API".</li>
+                                <li><strong>URI de redirection :</strong>
+                                    <code>http://localhost:3000/oauth2callback</code>
+                                </li>
+                                <li><strong>Utilisateurs test :</strong> Ajoutez votre email dans l'écran de
+                                    consentement.</li>
+                            </ul>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Client ID</label>
+                            <input type="text" id="settings-gdrive-client-id"
+                                placeholder="...apps.googleusercontent.com" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Client Secret</label>
+                            <input type="password" id="settings-gdrive-client-secret" placeholder="Client Secret"
+                                style="width: 100%;">
+                        </div>
+
+                        <h4>Étape 2 : Connexion</h4>
+                        <p class="setting-desc" style="font-size: 0.85em;">Cliquez ci-dessous pour autoriser
+                            l'application (une page web s'ouvrira).</p>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <button id="settings-gdrive-auth-btn"
+                                style="background-color: #34A853; color: white; width: 100%;">Connexion
+                                Google</button>
+                            <button id="settings-gdrive-logout-btn"
+                                style="background-color: #EA4335; color: white; width: 100%; display:none;">Déconnexion</button>
+                        </div>
+                        <div id="settings-gdrive-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-actions">
                 <button id="settings-close-btn">Fermer</button>
+                <button id="settings-save-btn"
+                    style="background-color: var(--primary-color, #007aff); color: white;">Enregistrer</button>
             </div>
         </div>
     </div>
@@ -80,4 +190,5 @@
     <!-- On lie notre script de rendu qui gère l'interactivité de la page -->
     <script src="./renderer.js"></script>
 </body>
+
 </html>

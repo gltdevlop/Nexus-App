@@ -1,57 +1,40 @@
-:root {
-    --bg-color: #1e1e1e;
-    --sidebar-bg: #282828;
-    --card-bg: #3a3a3a;
-    --text-color: #ffffff;
-    --text-secondary: #aaaaaa;
-    --border-color: #444;
-    --primary-color: #0a84ff;
-    --danger-color: #ff453a;
-    --success-color: #30d158;
-    --warning-color: #ffd60a;
-}
-
-body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
+/* Modern Todo App Styles with Gradient Design System */
 
 /* --- Structure Principale --- */
 .todo-app {
     display: flex;
     height: 100%;
-    /* Fit parent .content-area */
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    background-color: var(--bg-color);
+    background-color: var(--background-dark);
     overflow: hidden;
-    /* Prevent spill out */
 }
 
 .todo-sidebar {
     width: 280px;
     min-width: 280px;
-    /* Prevent shrink */
-    background-color: var(--sidebar-bg);
-    border-right: 1px solid #000;
+    max-width: 280px;
+    background: linear-gradient(180deg, var(--surface-dark) 0%, #252527 100%);
+    border-right: 1px solid var(--border-color);
     padding: 20px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Fix: No global sidebar scroll, let child scroll */
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .todo-main-content {
-    flex-grow: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
     padding: 20px 40px;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    /* Main scroll area */
     overflow-x: hidden;
-    min-width: 0;
-    /* Crucial for flex child shrinking */
+    box-sizing: border-box;
 }
 
 /* --- Sidebar Grid (Smart Lists) --- */
@@ -63,26 +46,34 @@ body {
 }
 
 .smart-list-card {
-    background-color: var(--card-bg);
-    border-radius: 12px;
-    padding: 10px 15px;
+    background: var(--surface-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 15px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 80px;
+    height: 90px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.3s ease;
     position: relative;
 }
 
 .smart-list-card:hover {
-    background-color: #4a4a4a;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 122, 255, 0.2);
+    border-color: var(--primary-color);
 }
 
 .smart-list-card.active {
-    background-color: #4a4a4a;
-    /* Or a tint of blue */
-    box-shadow: 0 0 0 2px var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(0, 122, 255, 0.4);
+}
+
+.smart-list-card.active .card-label,
+.smart-list-card.active .card-count {
+    color: white;
 }
 
 .card-header {
@@ -93,18 +84,20 @@ body {
 
 .card-icon {
     font-size: 1.5em;
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
 
 .card-count {
-    font-size: 1.8em;
+    font-size: 2em;
     font-weight: bold;
-    color: var(--text-color);
+    color: var(--text-primary);
 }
 
 .card-label {
@@ -115,25 +108,24 @@ body {
 
 /* Icons Colors */
 .icon-today {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
 }
 
 .icon-scheduled {
-    background-color: var(--danger-color);
+    background: linear-gradient(135deg, #ff453a, #ff6961);
     color: white;
 }
 
 .icon-all {
-    background-color: #666;
+    background: linear-gradient(135deg, #666, #888);
     color: white;
 }
 
 .icon-completed {
-    background-color: #8e8e93;
+    background: linear-gradient(135deg, var(--success-color), #40e070);
     color: white;
 }
-
 
 /* --- My Lists --- */
 .todo-sidebar h2 {
@@ -143,6 +135,7 @@ body {
     color: var(--text-secondary);
     text-transform: uppercase;
     font-weight: bold;
+    letter-spacing: 0.5px;
 }
 
 .todo-user-lists {
@@ -150,102 +143,121 @@ body {
     padding: 0;
     margin: 0;
     flex-grow: 1;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .todo-user-lists li {
-    padding: 8px 10px;
+    padding: 10px 12px;
     cursor: pointer;
-    border-radius: 8px;
-    margin-bottom: 2px;
+    border-radius: 10px;
+    margin-bottom: 4px;
     font-weight: 500;
     display: flex;
     align-items: center;
-    color: var(--text-color);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
 }
 
 .todo-user-lists li:hover {
-    background-color: #3a3a3a;
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .todo-user-lists li.active {
-    background-color: #244668;
-    color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
 .list-color-dot {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    margin-right: 10px;
+    margin-right: 12px;
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 16px;
     color: white;
-    background-color: #007aff;
-    /* Default */
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
-
 
 #add-list-btn {
     margin-top: 10px;
-    padding: 5px;
+    padding: 8px 12px;
     border: none;
-    background: none;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
     cursor: pointer;
     text-align: left;
     color: var(--text-secondary);
     font-size: 0.9em;
     display: flex;
     align-items: center;
+    transition: all 0.3s ease;
 }
 
 #add-list-btn:hover {
-    color: var(--text-color);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--primary-color);
 }
 
 /* --- Main Content & Tasks --- */
 .todo-main-content h1 {
-    font-size: 2em;
-    color: var(--primary-color);
+    font-size: 2.5em;
     margin-bottom: 20px;
     border-bottom: none;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .task-list li {
     display: flex;
     align-items: flex-start;
-    /* Top align for multiline */
-    padding: 12px 10px;
+    padding: 15px 12px;
     background-color: transparent;
     border-bottom: 1px solid var(--border-color);
-    transition: background 0.2s;
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    margin-bottom: 2px;
 }
 
 .task-list li:hover {
-    background-color: #2c2c2c;
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Custom Checkbox */
 input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 22px;
-    height: 22px;
-    border: 2px solid #666;
-    /* Will be overridden by inline style */
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
     border-radius: 50%;
     margin-right: 15px;
     cursor: pointer;
     position: relative;
     flex-shrink: 0;
     margin-top: 2px;
+    transition: all 0.3s ease;
+}
+
+input[type="checkbox"]:hover {
+    border-color: var(--primary-color);
 }
 
 input[type="checkbox"]:checked {
-    background-color: var(--primary-color);
-    /* Overridden */
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     border-color: transparent;
 }
 
@@ -254,6 +266,7 @@ input[type="checkbox"]:checked::after {
     position: absolute;
     color: white;
     font-size: 14px;
+    font-weight: bold;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -273,13 +286,12 @@ input[type="checkbox"]:checked::after {
 
 .task-text {
     font-size: 1.1em;
-    color: var(--text-color);
+    color: var(--text-primary);
 }
 
 .task-text.completed {
     color: var(--text-secondary);
-    text-decoration: none;
-    /* Apple style just dims it usually */
+    opacity: 0.6;
 }
 
 .task-metadata {
@@ -292,8 +304,8 @@ input[type="checkbox"]:checked::after {
 }
 
 .task-due-date {
-    color: #ff453a;
-    /* Default to red if overdue or just standout */
+    color: var(--error-color);
+    font-weight: 500;
 }
 
 .task-due-date.future {
@@ -301,13 +313,12 @@ input[type="checkbox"]:checked::after {
 }
 
 .task-list-name {
-    color: #a0a0a0;
+    color: var(--text-secondary);
 }
 
 .recurrence-icon {
     font-size: 1em;
 }
-
 
 /* --- Buttons --- */
 .edit-btn,
@@ -316,9 +327,9 @@ input[type="checkbox"]:checked::after {
     border: none;
     cursor: pointer;
     font-size: 1.1rem;
-    color: #666;
+    color: var(--text-secondary);
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: all 0.3s ease;
     margin-left: 10px;
 }
 
@@ -328,40 +339,50 @@ input[type="checkbox"]:checked::after {
 }
 
 .delete-btn:hover {
-    color: var(--danger-color);
+    color: var(--error-color);
+    transform: scale(1.1);
 }
 
 .edit-btn:hover {
     color: var(--primary-color);
+    transform: scale(1.1);
 }
-
-/* --- Calendar (Dark Mode) --- */
-/* Override calendar.css styles from here or update calendar.css */
-/* We'll assume calendar.css needs update but global vars might help */
-
 
 /* --- Modals (Dark) --- */
 .modal-overlay {
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(5px);
 }
 
 .modal-content {
-    background-color: #2c2c2c;
-    color: var(--text-color);
-    border: 1px solid #444;
+    background-color: var(--surface-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 input,
 textarea,
 select {
-    background-color: #3a3a3a;
-    border: 1px solid #555;
-    color: white;
+    background-color: var(--background-dark);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 10px;
+    padding: 12px 15px;
+    transition: border-color 0.3s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--primary-color);
+    outline: none;
 }
 
 input::placeholder,
 textarea::placeholder {
-    color: #888;
+    color: var(--text-secondary);
 }
 
 /* Color Picker in Modal */
@@ -373,16 +394,22 @@ textarea::placeholder {
 }
 
 .color-option {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.color-option:hover {
+    transform: scale(1.15);
 }
 
 .color-option.selected {
     border-color: white;
-    transform: scale(1.1);
+    transform: scale(1.2);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 /* FAB */
@@ -390,25 +417,25 @@ textarea::placeholder {
     position: absolute;
     bottom: 30px;
     right: 30px;
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
     border: none;
-    font-size: 24px;
+    font-size: 28px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: 0 8px 20px rgba(0, 122, 255, 0.4);
+    transition: all 0.3s ease;
     z-index: 100;
 }
 
 .fab-btn:hover {
-    transform: scale(1.1);
-    background-color: #0062cc;
+    transform: scale(1.1) translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 122, 255, 0.6);
 }
 
 .empty-state {
@@ -430,4 +457,5 @@ textarea::placeholder {
     font-size: 0.9em;
     font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
