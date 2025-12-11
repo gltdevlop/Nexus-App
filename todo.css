@@ -8,7 +8,6 @@
     max-width: 100%;
     box-sizing: border-box;
     background-color: var(--background-dark);
-    overflow: hidden;
 }
 
 .todo-sidebar {
@@ -143,7 +142,28 @@
     padding: 0;
     margin: 0;
     flex-grow: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for todo lists */
+.todo-user-lists::-webkit-scrollbar {
+    width: 8px;
+}
+
+.todo-user-lists::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.todo-user-lists::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+.todo-user-lists::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 .todo-user-lists li {
@@ -471,11 +491,18 @@ textarea::placeholder {
 
 .dashboard-title {
     font-size: 2.5em;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.dashboard-datetime {
+    font-size: 1.2em;
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+    font-weight: 500;
 }
 
 .dashboard-sections {

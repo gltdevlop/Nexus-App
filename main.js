@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // INTERNAL MODULES
 const setupTodo = require('./internal/todo');
@@ -129,6 +130,20 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error("Erreur (complete-first-use):", error);
       return { success: false, error: error.message };
+    }
+  });
+
+  // --- Get User Name ---
+  ipcMain.handle('get-user-name', async () => {
+    try {
+      const username = os.userInfo().username;
+      // Try to extract first name (before space or dot)
+      const firstName = username.split(/[\s._]/)[0];
+      // Capitalize first letter
+      return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+    } catch (error) {
+      console.error("Erreur (get-user-name):", error);
+      return 'utilisateur';
     }
   });
 });

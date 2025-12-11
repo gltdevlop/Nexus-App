@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld('api', {
   completeFirstUse: () => ipcRenderer.invoke('complete-first-use'),
 
   /**
+   * Récupère le nom d'utilisateur du système.
+   * @returns {Promise<string>}
+   */
+  getUserName: () => ipcRenderer.invoke('get-user-name'),
+
+  /**
    * Récupère les tâches de la ToDo list.
    * @returns {Promise<Array>}
    */

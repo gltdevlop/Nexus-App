@@ -6,7 +6,6 @@
     height: 100%;
     width: 100%;
     background-color: var(--background-dark);
-    overflow: hidden;
 }
 
 .calendar-main {
@@ -14,8 +13,7 @@
     display: flex;
     flex-direction: column;
     padding: 40px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 /* Force scrollbar to always be visible */
@@ -142,8 +140,31 @@
     background-color: var(--border-color);
     border: 1px solid var(--border-color);
     border-radius: 16px;
-    overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for calendar grid */
+.calendar-month-grid::-webkit-scrollbar {
+    width: 12px;
+}
+
+.calendar-month-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.calendar-month-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    transition: background 0.3s ease;
+}
+
+.calendar-month-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 .calendar-weekday-header {
@@ -203,8 +224,27 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
+}
+
+/* Scrollbar styling for day events */
+.day-events::-webkit-scrollbar {
+    width: 4px;
+}
+
+.day-events::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.day-events::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.day-events::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 .event-pill {
@@ -456,6 +496,7 @@
 .form-group textarea,
 .form-group select {
     width: 100%;
+    box-sizing: border-box;
     background: var(--background-dark);
     border: 2px solid var(--border-color);
     border-radius: 10px;
@@ -473,7 +514,7 @@
 }
 
 .form-group textarea {
-    resize: vertical;
+    resize: none;
     min-height: 80px;
 }
 

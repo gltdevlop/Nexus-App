@@ -56,6 +56,26 @@
 .calendar-tasks {
     flex-grow: 1;
     font-size: 0.8em;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for calendar tasks */
+.calendar-tasks::-webkit-scrollbar {
+    width: 4px;
+}
+
+.calendar-tasks::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.calendar-tasks::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.calendar-tasks::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 .calendar-task {

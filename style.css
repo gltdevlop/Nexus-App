@@ -165,9 +165,48 @@ html {
 /* Zone de contenu principale */
 .content-area {
     flex-grow: 1;
-    padding: 20px;
+    display: flex;
+    flex-direction: column;
     box-sizing: border-box;
     background-color: var(--background-dark);
+    overflow: hidden;
+    height: 100%;
+}
+
+.content-area>div {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Apply overflow only to containers that don't manage their own scrolling */
+.content-area>div:not(#calendar-app-container):not(#todo-app-container) {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for content area */
+.content-area>div::-webkit-scrollbar {
+    width: 12px;
+}
+
+.content-area>div::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.content-area>div::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    transition: background 0.3s ease;
+}
+
+.content-area>div::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+#welcome-container {
+    padding: 20px;
 }
 
 #welcome-container h1 {

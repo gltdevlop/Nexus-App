@@ -1234,9 +1234,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function initDashboard(container) {
         if (!dashboardInitialized) {
+            // Get username
+            const userName = await window.api.getUserName();
+
+            // Format current date and time in French
+            const now = new Date();
+            const formattedDateTime = formatDateTime(now);
+
             container.innerHTML = `
                 <div class="dashboard-wrapper">
-                    <h1 class="dashboard-title">Dashboard</h1>
+                    <h1 class="dashboard-title">Bonjour ${userName} !</h1>
+                    <p class="dashboard-datetime" id="dashboard-datetime">${formattedDateTime}</p>
                     <div class="dashboard-sections">
                         <div class="dashboard-section" id="dashboard-today">
                             <div class="dashboard-section-header">
@@ -1262,11 +1270,32 @@ window.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
+
+            // Update time every minute
+            setInterval(() => {
+                const dateTimeElement = document.getElementById('dashboard-datetime');
+                if (dateTimeElement) {
+                    dateTimeElement.textContent = formatDateTime(new Date());
+                }
+            }, 60000);
+
             dashboardInitialized = true;
         }
 
         // Render dashboard content
         await renderDashboard();
+    }
+
+    function formatDateTime(date) {
+        const day = date.getDate().toString().padStart(2, '0');
+        const monthNames = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+            'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+
+        return `Nous sommes le ${day} ${month} ${year}, il est ${hours}:${minutes}.`;
     }
 
     async function renderDashboard() {
@@ -2817,6 +2846,63 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventDestinationSelect.disabled = true;
                 eventDeleteBtn.style.display = 'block';
 
+                // Calculate duration
+                if (event.end) {
+                    const start = new Date(event.start);
+                    const end = new Date(event.end);
+                    const durationHours = (end - start) / (1000 * 60 * 60);
+                    eventDurationInput.value = durationHours;
+                }
+
+                // Populate recurrence fields if event has recurrence
+                console.log('🔍 Event object:', event);
+                console.log('🔍 Event recurrence:', event.recurrence);
+
+                if (event.recurrence && event.recurrence.length > 0) {
+                    const rrule = event.recurrence[0]; // RRULE:FREQ=WEEKLY;UNTIL=...
+                    console.log('🔍 RRULE:', rrule);
+
+                    // Extract frequency
+                    const freqMatch = rrule.match(/FREQ=(\w+)/);
+                    if (freqMatch) {
+                        eventRecurrenceSelect.value = freqMatch[1];
+                        eventRecurrenceEnd.style.display = 'flex';
+                    }
+
+                    // Extract UNTIL date
+                    const untilMatch = rrule.match(/UNTIL=(\d{8}T\d{6}Z)/);
+                    if (untilMatch) {
+                        eventRecurrenceEndType.value = 'date';
+                        // Parse UNTIL format: 20251231T235959Z
+                        const untilStr = untilMatch[1];
+                        const year = untilStr.substring(0, 4);
+                        const month = untilStr.substring(4, 6);
+                        const day = untilStr.substring(6, 8);
+                        eventRecurrenceEndDate.value = `${year}-${month}-${day}`;
+                        eventRecurrenceEndDateGroup.style.display = 'block';
+                        eventRecurrenceEndCountGroup.style.display = 'none';
+                    }
+                    // Extract COUNT
+                    else {
+                        const countMatch = rrule.match(/COUNT=(\d+)/);
+                        if (countMatch) {
+                            eventRecurrenceEndType.value = 'count';
+                            eventRecurrenceEndCount.value = countMatch[1];
+                            eventRecurrenceEndDateGroup.style.display = 'none';
+                            eventRecurrenceEndCountGroup.style.display = 'block';
+                        } else {
+                            eventRecurrenceEndType.value = 'never';
+                            eventRecurrenceEndDateGroup.style.display = 'none';
+                            eventRecurrenceEndCountGroup.style.display = 'none';
+                        }
+                    }
+                } else {
+                    // No recurrence
+                    eventRecurrenceSelect.value = '';
+                    eventRecurrenceEnd.style.display = 'none';
+                    eventRecurrenceEndType.value = 'never';
+                }
+
                 // Hide calendar selector when editing
                 eventCalendarSelector.style.display = 'none';
             } else {
@@ -2828,6 +2914,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventDestinationSelect.value = 'local';
                 eventDestinationSelect.disabled = false;
                 eventDescriptionInput.value = '';
+                eventRecurrenceSelect.value = '';
+                eventRecurrenceEnd.style.display = 'none';
                 eventDeleteBtn.style.display = 'none';
 
                 // Populate calendar selector
