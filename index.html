@@ -3,11 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>AppMaster</title>
+    <title>Nexus App</title>
     <!-- On lie notre feuille de style pour l'apparence de l'application -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="todo.css">
     <link rel="stylesheet" href="calendar.css">
+    <link rel="stylesheet" href="calendar-app.css">
     <link rel="stylesheet" href="files.css">
 </head>
 
@@ -28,15 +29,21 @@
         <!-- La zone de contenu principale où les services s'afficheront -->
         <div class="content-area">
             <div id="welcome-container" class="welcome-container">
-                <h1>Bienvenue dans AppMaster</h1>
+                <h1>Bienvenue dans Nexus App</h1>
                 <p>Cliquez sur un service pour le charger, ou sur le '+' pour en ajouter un.</p>
             </div>
             <webview id="service-webview" class="service-webview" style="display: none;"></webview>
             <div id="todo-app-container" style="display: none;">
                 <!-- Le contenu de l'application ToDo sera injecté ici -->
             </div>
+            <div id="dashboard-container" style="display: none;">
+                <!-- Le contenu du Dashboard sera injecté ici -->
+            </div>
             <div id="files-app-container" style="display: none;">
                 <!-- Le contenu de l'application Files sera injecté ici -->
+            </div>
+            <div id="calendar-app-container" style="display: none;">
+                <!-- Le contenu de l'application Calendrier sera injecté ici -->
             </div>
         </div>
     </div>
@@ -53,9 +60,12 @@
             <label for="service-internal-select">Ou choisir un service interne</label>
             <select id="service-internal-select" style="width: 100%; padding: 8px; margin-bottom: 15px;">
                 <option value="">-- Sélectionner --</option>
+                <option value="internal://dashboard">Dashboard</option>
                 <option value="internal://todo">ToDo List</option>
+                <option value="internal://calendar">Calendrier</option>
                 <option value="internal://files">Fichiers WebDAV</option>
                 <option value="internal://gdrive">Fichiers GDrive</option>
+                <option value="internal://ai">IA</option>
             </select>
 
             <div class="modal-actions">
@@ -86,6 +96,8 @@
                     <ul>
                         <li class="active" data-section="files">Fichiers WebDAV</li>
                         <li data-section="gdrive">Fichiers GDrive</li>
+                        <li data-section="gcal">Google Calendar</li>
+                        <li data-section="ai">IA</li>
                         <!-- Future sections: <li data-section="general">Général</li> -->
                     </ul>
                 </div>
@@ -175,6 +187,111 @@
                                 style="background-color: #EA4335; color: white; width: 100%; display:none;">Déconnexion</button>
                         </div>
                         <div id="settings-gdrive-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
+                        </div>
+                    </div>
+
+                    <!-- Section Google Calendar -->
+                    <div id="settings-section-gcal" class="settings-section" style="display:none;">
+                        <h3>Google Calendar</h3>
+                        <p class="setting-desc">Synchronisez vos événements avec Google Calendar.</p>
+
+                        <h4>Étape 1 : Identifiants</h4>
+                        <p class="setting-desc" style="font-size: 0.85em;">Copiez ici le Client ID et le Client Secret
+                            depuis votre <a href="#"
+                                onclick="require('electron').shell.openExternal('https://console.cloud.google.com/apis/credentials')">Google
+                                Cloud Console</a>.</p>
+
+                        <div
+                            style="background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; padding: 10px; margin-bottom: 15px; font-size: 0.85em; color: #ddd;">
+                            <strong>Attention :</strong> Assurez-vous d'avoir configuré ceci dans la console Google :
+                            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                                <li><strong>Activer l'API :</strong> Allez dans "Bibliothèque" et activez "Google
+                                    Calendar
+                                    API".</li>
+                                <li><strong>URI de redirection :</strong>
+                                    <code>http://localhost:3001/oauth2callback</code>
+                                </li>
+                                <li><strong>Utilisateurs test :</strong> Ajoutez votre email dans l'écran de
+                                    consentement.</li>
+                            </ul>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Client ID</label>
+                            <input type="text" id="settings-gcal-client-id" placeholder="...apps.googleusercontent.com"
+                                style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Client Secret</label>
+                            <input type="password" id="settings-gcal-client-secret" placeholder="Client Secret"
+                                style="width: 100%;">
+                        </div>
+
+                        <h4>Étape 2 : Connexion</h4>
+                        <p class="setting-desc" style="font-size: 0.85em;">Cliquez ci-dessous pour autoriser
+                            l'application (une page web s'ouvrira).</p>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <button id="settings-gcal-auth-btn"
+                                style="background-color: #34A853; color: white; width: 100%;">Connexion
+                                Google</button>
+                            <button id="settings-gcal-logout-btn"
+                                style="background-color: #EA4335; color: white; width: 100%; display:none;">Déconnexion</button>
+                        </div>
+                        <div id="settings-gcal-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
+                        </div>
+
+                        <h4 id="settings-gcal-calendars-title" style="display:none; margin-top: 25px;">Étape 3 :
+                            Sélection des calendriers</h4>
+                        <p class="setting-desc" id="settings-gcal-calendars-desc"
+                            style="font-size: 0.85em; display:none;">Choisissez quels calendriers afficher (y compris
+                            les calendriers partagés).</p>
+                        <div id="settings-gcal-calendars-list"
+                            style="display:none; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-top: 10px;">
+                            <!-- Calendar checkboxes will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Section AI -->
+                    <div id="settings-section-ai" class="settings-section" style="display:none;">
+                        <h3>Assistant IA</h3>
+                        <p class="setting-desc">Choisissez votre assistant IA préféré.</p>
+
+                        <div class="form-group">
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="gemini">
+                                <span class="ai-provider-label">🤖 Gemini (Google AI)</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="chatgpt">
+                                <span class="ai-provider-label">💬 ChatGPT (OpenAI)</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="claude">
+                                <span class="ai-provider-label">🧠 Claude (Anthropic)</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="deepseek">
+                                <span class="ai-provider-label">🔍 DeepSeek</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="grok">
+                                <span class="ai-provider-label">🚀 Grok (xAI)</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="perplexity">
+                                <span class="ai-provider-label">🔮 Perplexity</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="mistral">
+                                <span class="ai-provider-label">🌪️ Mistral</span>
+                            </label>
+                            <label class="ai-provider-option">
+                                <input type="radio" name="ai-provider" value="llama">
+                                <span class="ai-provider-label">🦙 Llama</span>
+                            </label>
+                        </div>
+
+                        <div id="settings-ai-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
                         </div>
                     </div>
                 </div>

@@ -400,7 +400,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const webview = document.getElementById('service-webview');
     const welcomeContainer = document.getElementById('welcome-container');
     const todoAppContainer = document.getElementById('todo-app-container');
+    const dashboardContainer = document.getElementById('dashboard-container');
     const filesAppContainer = document.getElementById('files-app-container');
+    const calendarAppContainer = document.getElementById('calendar-app-container');
 
     // Éléments de la modale d'ajout de service
     const modal = document.getElementById('add-service-modal');
@@ -416,9 +418,12 @@ window.addEventListener('DOMContentLoaded', () => {
             urlInput.value = internalSelect.value;
             // Auto-fill name if empty
             if (!nameInput.value.trim()) {
-                if (internalSelect.value === 'internal://todo') nameInput.value = "ToDo List";
+                if (internalSelect.value === 'internal://dashboard') nameInput.value = "Dashboard";
+                else if (internalSelect.value === 'internal://todo') nameInput.value = "ToDo List";
+                else if (internalSelect.value === 'internal://calendar') nameInput.value = "Calendrier";
                 else if (internalSelect.value === 'internal://files') nameInput.value = "Fichiers WebDAV";
                 else if (internalSelect.value === 'internal://gdrive') nameInput.value = "Fichiers GDrive";
+                else if (internalSelect.value === 'internal://ai') nameInput.value = "IA";
             }
         }
     });
@@ -548,6 +553,19 @@ window.addEventListener('DOMContentLoaded', () => {
     const settingsGdriveLogoutBtn = document.getElementById('settings-gdrive-logout-btn');
     const settingsGdriveStatus = document.getElementById('settings-gdrive-status');
 
+    // --- GESTION REGLAGES GOOGLE CALENDAR ---
+    const settingsGcalClientId = document.getElementById('settings-gcal-client-id');
+    const settingsGcalClientSecret = document.getElementById('settings-gcal-client-secret');
+    const settingsGcalAuthBtn = document.getElementById('settings-gcal-auth-btn');
+    const settingsGcalLogoutBtn = document.getElementById('settings-gcal-logout-btn');
+    const settingsGcalStatus = document.getElementById('settings-gcal-status');
+    const settingsGcalCalendarsTitle = document.getElementById('settings-gcal-calendars-title');
+    const settingsGcalCalendarsDesc = document.getElementById('settings-gcal-calendars-desc');
+    const settingsGcalCalendarsList = document.getElementById('settings-gcal-calendars-list');
+
+    let availableCalendars = [];
+    let selectedCalendarIds = [];
+
     settingsBtn.addEventListener('click', async () => {
         // Load WebDAV Config
         const webdavConfig = await window.api.webdav.getConfig();
@@ -578,6 +596,43 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Load Google Calendar Config
+        const gcalConfig = await window.api.gcal.getConfig();
+        if (gcalConfig) {
+            settingsGcalClientId.value = gcalConfig.clientId || '';
+            settingsGcalClientSecret.value = gcalConfig.clientSecret || '';
+            selectedCalendarIds = gcalConfig.selectedCalendars || [];
+
+            if (gcalConfig.connected) {
+                settingsGcalStatus.textContent = "Connecté à Google Calendar";
+                settingsGcalAuthBtn.style.display = 'none';
+                settingsGcalLogoutBtn.style.display = 'block';
+
+                // Load and display calendars
+                await loadGoogleCalendars();
+            } else {
+                settingsGcalStatus.textContent = "Non connecté";
+                settingsGcalAuthBtn.style.display = 'block';
+                settingsGcalLogoutBtn.style.display = 'none';
+                settingsGcalCalendarsTitle.style.display = 'none';
+                settingsGcalCalendarsDesc.style.display = 'none';
+                settingsGcalCalendarsList.style.display = 'none';
+            }
+        }
+
+        // Load AI Config
+        const aiConfig = await window.api.ai.getConfig();
+        const aiProviderRadios = document.getElementsByName('ai-provider');
+        if (aiConfig && aiConfig.provider) {
+            aiProviderRadios.forEach(radio => {
+                radio.checked = (radio.value === aiConfig.provider);
+            });
+            document.getElementById('settings-ai-status').textContent = `Actuellement: ${aiConfig.provider}`;
+        } else {
+            aiProviderRadios.forEach(radio => radio.checked = false);
+            document.getElementById('settings-ai-status').textContent = "Aucun assistant IA configuré";
+        }
+
         settingsModal.style.display = 'flex';
     });
 
@@ -606,6 +661,96 @@ window.addEventListener('DOMContentLoaded', () => {
         settingsGdriveStatus.textContent = "Déconnecté";
         settingsGdriveAuthBtn.style.display = 'block';
         settingsGdriveLogoutBtn.style.display = 'none';
+    });
+
+    async function loadGoogleCalendars() {
+        try {
+            const result = await window.api.gcal.listCalendars();
+            if (result.success) {
+                availableCalendars = result.calendars;
+                renderCalendarsList();
+                settingsGcalCalendarsTitle.style.display = 'block';
+                settingsGcalCalendarsDesc.style.display = 'block';
+                settingsGcalCalendarsList.style.display = 'block';
+            }
+        } catch (e) {
+            console.error("Error loading calendars:", e);
+        }
+    }
+
+    function renderCalendarsList() {
+        settingsGcalCalendarsList.innerHTML = '';
+
+        availableCalendars.forEach(cal => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 8px; margin: 5px 0; border-radius: 8px; background: var(--background-dark); display: flex; align-items: center; gap: 10px;';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `gcal-${cal.id}`;
+            checkbox.checked = selectedCalendarIds.includes(cal.id);
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    if (!selectedCalendarIds.includes(cal.id)) {
+                        selectedCalendarIds.push(cal.id);
+                    }
+                } else {
+                    selectedCalendarIds = selectedCalendarIds.filter(id => id !== cal.id);
+                }
+            });
+
+            const label = document.createElement('label');
+            label.htmlFor = `gcal-${cal.id}`;
+            label.style.cssText = 'flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px;';
+
+            const colorDot = document.createElement('span');
+            colorDot.style.cssText = `width: 12px; height: 12px; border-radius: 50%; background-color: ${cal.backgroundColor || '#4285f4'};`;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = cal.name;
+            if (cal.primary) nameSpan.textContent += ' (Principal)';
+
+            label.appendChild(colorDot);
+            label.appendChild(nameSpan);
+
+            div.appendChild(checkbox);
+            div.appendChild(label);
+
+            settingsGcalCalendarsList.appendChild(div);
+        });
+    }
+
+    settingsGcalAuthBtn.addEventListener('click', async () => {
+        // Save client id/secret first
+        const clientId = settingsGcalClientId.value.trim();
+        const clientSecret = settingsGcalClientSecret.value.trim();
+
+        await window.api.gcal.saveConfig({ clientId, clientSecret });
+
+        settingsGcalStatus.textContent = "Authentification en cours... Veuillez vérifier votre navigateur.";
+
+        const result = await window.api.gcal.auth();
+        if (result.success) {
+            settingsGcalStatus.textContent = "Connecté avec succès !";
+            settingsGcalAuthBtn.style.display = 'none';
+            settingsGcalLogoutBtn.style.display = 'block';
+
+            // Load calendars after successful auth
+            await loadGoogleCalendars();
+        } else {
+            settingsGcalStatus.textContent = "Erreur: " + result.error;
+        }
+    });
+
+    settingsGcalLogoutBtn.addEventListener('click', async () => {
+        await window.api.gcal.disconnect();
+        settingsGcalStatus.textContent = "Déconnecté";
+        settingsGcalAuthBtn.style.display = 'block';
+        settingsGcalLogoutBtn.style.display = 'none';
+        settingsGcalCalendarsTitle.style.display = 'none';
+        settingsGcalCalendarsDesc.style.display = 'none';
+        settingsGcalCalendarsList.style.display = 'none';
+        selectedCalendarIds = [];
     });
 
     settingsSaveBtn.addEventListener('click', async () => {
@@ -643,6 +788,39 @@ window.addEventListener('DOMContentLoaded', () => {
                     return; // Stop here, keep modal open
                 }
             }
+        }
+
+        // Save Google Calendar Config
+        const gcalClientId = settingsGcalClientId.value.trim();
+        const gcalClientSecret = settingsGcalClientSecret.value.trim();
+        await window.api.gcal.saveConfig({
+            clientId: gcalClientId,
+            clientSecret: gcalClientSecret,
+            selectedCalendars: selectedCalendarIds
+        });
+
+        // Check if GCal needs auth
+        if (gcalClientId && gcalClientSecret) {
+            const gcConf = await window.api.gcal.getConfig();
+            if (!gcConf.connected) {
+                if (confirm("Google Calendar n'est pas encore connecté.\n\nVous devez cliquer sur 'Connexion Google' (Étape 2) pour finaliser l'accès.\n\nVoulez-vous le faire maintenant ?")) {
+                    settingsSidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+                    const gcalTab = settingsSidebar.querySelector('li[data-section="gcal"]');
+                    if (gcalTab) gcalTab.classList.add('active');
+
+                    settingsSections.forEach(s => s.style.display = 'none');
+                    document.getElementById('settings-section-gcal').style.display = 'block';
+                    return;
+                }
+            }
+        }
+
+        // Save AI Config
+        const selectedAiProvider = document.querySelector('input[name="ai-provider"]:checked');
+        if (selectedAiProvider) {
+            await window.api.ai.saveConfig({
+                provider: selectedAiProvider.value
+            });
         }
 
         settingsModal.style.display = 'none';
@@ -763,17 +941,42 @@ window.addEventListener('DOMContentLoaded', () => {
         welcomeContainer.style.display = 'none';
         webview.style.display = 'none';
         todoAppContainer.style.display = 'none';
+        dashboardContainer.style.display = 'none';
         filesAppContainer.style.display = 'none';
+        calendarAppContainer.style.display = 'none';
 
-        if (serviceUrl === 'internal://todo') {
+        if (serviceUrl === 'internal://dashboard') {
+            dashboardContainer.style.display = 'flex';
+            initDashboard(dashboardContainer);
+        } else if (serviceUrl === 'internal://todo') {
             todoAppContainer.style.display = 'flex';
             initTodoApp(todoAppContainer);
+        } else if (serviceUrl === 'internal://calendar') {
+            calendarAppContainer.style.display = 'flex';
+            initCalendarApp(calendarAppContainer);
         } else if (serviceUrl === 'internal://files') {
             filesAppContainer.style.display = 'flex';
             initFilesApp(filesAppContainer, 'webdav');
         } else if (serviceUrl === 'internal://gdrive') {
             filesAppContainer.style.display = 'flex';
             initFilesApp(filesAppContainer, 'gdrive');
+        } else if (serviceUrl === 'internal://ai') {
+            // Load AI provider
+            window.api.ai.getConfig().then(aiConfig => {
+                if (aiConfig && aiConfig.configured && aiConfig.url) {
+                    webview.src = aiConfig.url;
+                    webview.style.display = 'flex';
+                } else {
+                    // Show configuration prompt
+                    welcomeContainer.innerHTML = `
+                        <h1>🤖 Assistant IA</h1>
+                        <p>Aucun assistant IA n'est configuré.</p>
+                        <p>Veuillez configurer votre assistant IA préféré dans les réglages.</p>
+                        <button onclick="document.getElementById('settings-btn').click()" style="margin-top: 20px; padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">Ouvrir les Réglages</button>
+                    `;
+                    welcomeContainer.style.display = 'block';
+                }
+            });
         } else if (serviceUrl === 'internal://add-service') {
             // Special case: open add service modal
             addServiceBtn.click();
@@ -1023,9 +1226,284 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
 
+
     // --- LOGIQUE DE L'APPLICATION TODO ---
 
+    // --- DASHBOARD LOGIC ---
+    let dashboardInitialized = false;
+
+    async function initDashboard(container) {
+        if (!dashboardInitialized) {
+            container.innerHTML = `
+                <div class="dashboard-wrapper">
+                    <h1 class="dashboard-title">Dashboard</h1>
+                    <div class="dashboard-sections">
+                        <div class="dashboard-section" id="dashboard-today">
+                            <div class="dashboard-section-header">
+                                <h2>📋 Tâches du jour</h2>
+                                <span class="dashboard-count" id="dashboard-today-count">0</span>
+                            </div>
+                            <ul class="dashboard-task-list" id="dashboard-today-list"></ul>
+                        </div>
+                        <div class="dashboard-section" id="dashboard-overdue">
+                            <div class="dashboard-section-header">
+                                <h2>⚠️ En retard</h2>
+                                <span class="dashboard-count" id="dashboard-overdue-count">0</span>
+                            </div>
+                            <ul class="dashboard-task-list" id="dashboard-overdue-list"></ul>
+                        </div>
+                        <div class="dashboard-section" id="dashboard-events">
+                            <div class="dashboard-section-header">
+                                <h2>📅 Événements du jour</h2>
+                                <span class="dashboard-count" id="dashboard-events-count">0</span>
+                            </div>
+                            <ul class="dashboard-event-list" id="dashboard-events-list"></ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            dashboardInitialized = true;
+        }
+
+        // Render dashboard content
+        await renderDashboard();
+    }
+
+    async function renderDashboard() {
+        try {
+            const todoData = await window.api.getTodos();
+            const tasks = todoData.tasks || [];
+            const lists = todoData.lists || [];
+
+            const today = new Date().toISOString().split('T')[0];
+            const todayDate = new Date(today);
+            todayDate.setHours(0, 0, 0, 0);
+
+            // Filter tasks
+            const todayTasks = tasks.filter(t => !t.completed && t.dueDate === today);
+            const overdueTasks = tasks.filter(t => {
+                if (!t.dueDate || t.completed) return false;
+                const dueDate = new Date(t.dueDate);
+                dueDate.setHours(0, 0, 0, 0);
+                return dueDate < todayDate;
+            });
+
+            // Update counts
+            document.getElementById('dashboard-today-count').textContent = todayTasks.length;
+            document.getElementById('dashboard-overdue-count').textContent = overdueTasks.length;
+
+            // Render today's tasks
+            const todayList = document.getElementById('dashboard-today-list');
+            todayList.innerHTML = '';
+            if (todayTasks.length === 0) {
+                todayList.innerHTML = '<div class="empty-state">Aucune tâche pour aujourd\'hui</div>';
+            } else {
+                todayTasks.forEach(task => {
+                    todayList.appendChild(createDashboardTaskElement(task, lists));
+                });
+            }
+
+            // Render overdue tasks
+            const overdueList = document.getElementById('dashboard-overdue-list');
+            overdueList.innerHTML = '';
+            if (overdueTasks.length === 0) {
+                overdueList.innerHTML = '<div class="empty-state">Aucune tâche en retard</div>';
+            } else {
+                overdueTasks.forEach(task => {
+                    overdueList.appendChild(createDashboardTaskElement(task, lists));
+                });
+            }
+
+            // --- FETCH AND RENDER CALENDAR EVENTS ---
+            const allEvents = [];
+
+            // Fetch local calendar events
+            try {
+                const localCalendarData = await window.api.calendar.getEvents();
+                const localEvents = localCalendarData.events || [];
+
+                // Filter today's local events
+                const todayLocalEvents = localEvents.filter(event => {
+                    if (!event.start) return false;
+                    const eventDate = new Date(event.start).toISOString().split('T')[0];
+                    return eventDate === today;
+                }).map(event => ({
+                    ...event,
+                    source: 'local'
+                }));
+
+                allEvents.push(...todayLocalEvents);
+            } catch (error) {
+                console.error('Error fetching local calendar events:', error);
+            }
+
+            // Fetch Google Calendar events
+            try {
+                const gcalConfig = await window.api.gcal.getConfig();
+                if (gcalConfig && gcalConfig.connected && gcalConfig.selectedCalendars && gcalConfig.selectedCalendars.length > 0) {
+                    const startOfDay = new Date(today);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    const endOfDay = new Date(today);
+                    endOfDay.setHours(23, 59, 59, 999);
+
+                    const gcalResult = await window.api.gcal.fetchEvents({
+                        timeMin: startOfDay.toISOString(),
+                        timeMax: endOfDay.toISOString(),
+                        calendarIds: gcalConfig.selectedCalendars
+                    });
+
+                    if (gcalResult.success && gcalResult.events) {
+                        const googleEvents = gcalResult.events.map(event => ({
+                            ...event,
+                            source: 'google'
+                        }));
+                        allEvents.push(...googleEvents);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching Google Calendar events:', error);
+            }
+
+            // Sort events by start time
+            allEvents.sort((a, b) => {
+                const timeA = new Date(a.start).getTime();
+                const timeB = new Date(b.start).getTime();
+                return timeA - timeB;
+            });
+
+            // Update events count
+            document.getElementById('dashboard-events-count').textContent = allEvents.length;
+
+            // Render events
+            const eventsList = document.getElementById('dashboard-events-list');
+            eventsList.innerHTML = '';
+            if (allEvents.length === 0) {
+                eventsList.innerHTML = '<div class="empty-state">Aucun événement aujourd\'hui</div>';
+            } else {
+                allEvents.forEach(event => {
+                    eventsList.appendChild(createDashboardEventElement(event));
+                });
+            }
+
+        } catch (error) {
+            console.error('Error rendering dashboard:', error);
+        }
+    }
+
+    function createDashboardTaskElement(task, lists) {
+        const li = document.createElement('li');
+        li.dataset.taskId = task.id;
+
+        // Determine List Color
+        let listColor = '#666';
+        if (task.listId) {
+            const l = lists.find(x => x.id === task.listId);
+            if (l && l.color) listColor = l.color;
+        }
+
+        // List Name display
+        let listNameHtml = '';
+        if (task.listId) {
+            const l = lists.find(x => x.id === task.listId);
+            if (l) listNameHtml = `<span class="task-list-name">${l.name}</span>`;
+        }
+
+        // Date formatting
+        const dateOptions = { month: 'long', day: 'numeric' };
+        if (task.dueDate && new Date(task.dueDate).getFullYear() !== new Date().getFullYear()) {
+            dateOptions.year = 'numeric';
+        }
+
+        const dueDateHtml = task.dueDate ?
+            `<span class="task-due-date">
+                ${new Date(task.dueDate).toLocaleDateString('fr-FR', dateOptions)}
+             </span>` : '';
+
+        // Recurrence Icon
+        let recurrenceIcon = '';
+        if (task.recurrence && task.recurrence !== 'none') {
+            recurrenceIcon = `<span class="recurrence-icon" title="${task.recurrence}">↻</span>`;
+        }
+
+        li.innerHTML = `
+            <input type="checkbox" ${task.completed ? 'checked' : ''} style="border-color: ${listColor};">
+            <style>
+                li[data-task-id="${task.id}"] input[type="checkbox"]:checked {
+                    background-color: ${listColor};
+                    border-color: transparent !important;
+                }
+            </style>
+            <div class="task-info-container" style="flex:1;">
+                <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
+                <div class="task-metadata">
+                    ${listNameHtml}
+                    ${dueDateHtml}
+                    ${recurrenceIcon}
+                </div>
+            </div>
+        `;
+
+        // Add checkbox event listener
+        const checkbox = li.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', async () => {
+            task.completed = checkbox.checked;
+            const todoData = await window.api.getTodos();
+            const taskIndex = todoData.tasks.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+                todoData.tasks[taskIndex] = task;
+                await window.api.saveTodos(todoData);
+                await renderDashboard(); // Refresh dashboard
+            }
+        });
+
+        return li;
+    }
+
+    function createDashboardEventElement(event) {
+        const li = document.createElement('li');
+        li.className = 'dashboard-event-item';
+
+        // Format time
+        const startTime = new Date(event.start);
+        const endTime = new Date(event.end);
+
+        const formatTime = (date) => {
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        const timeRange = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+
+        // Determine source badge
+        let sourceBadge = '';
+        let badgeClass = '';
+        if (event.source === 'google') {
+            sourceBadge = 'Google Calendar';
+            badgeClass = 'badge-google';
+        } else if (event.source === 'local') {
+            sourceBadge = 'Calendrier local';
+            badgeClass = 'badge-local';
+        }
+
+        // Event title (use title for Google events, or fallback to summary for local)
+        const eventTitle = event.title || event.summary || '(Sans titre)';
+
+        li.innerHTML = `
+            <div class="event-time-indicator">
+                <span class="event-time-icon">🕐</span>
+                <span class="event-time">${timeRange}</span>
+            </div>
+            <div class="event-info-container">
+                <span class="event-title">${eventTitle}</span>
+                <span class="event-source-badge ${badgeClass}">${sourceBadge}</span>
+            </div>
+        `;
+
+        return li;
+    }
+
+    // --- TODO APP LOGIC ---
     let todoAppInitialized = false;
+
     async function initTodoApp(container) {
         if (todoAppInitialized) return;
         todoAppInitialized = true;
@@ -1831,16 +2309,768 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Charge les services et met en place les onglets
         const services = await window.api.getServices();
+
+        // Ensure dashboard is the first service
+        const dashboardIndex = services.findIndex(s => s.url === 'internal://dashboard');
+        if (dashboardIndex === -1) {
+            // Add dashboard as first service if it doesn't exist
+            services.unshift({ name: 'Dashboard', url: 'internal://dashboard' });
+            await window.api.saveServices(services);
+        } else if (dashboardIndex !== 0) {
+            // Move dashboard to first position if it exists but isn't first
+            const [dashboard] = services.splice(dashboardIndex, 1);
+            services.unshift(dashboard);
+            await window.api.saveServices(services);
+        }
+
         renderServiceTabs(services);
 
-        // Show welcome screen on startup instead of auto-loading first service
-        welcomeContainer.style.display = 'block';
+        // Auto-load dashboard on startup
+        const firstService = serviceList.querySelector('li');
+        if (firstService) {
+            showService(firstService);
+        }
 
         serviceList.addEventListener('click', (e) => {
             if (e.target.tagName === 'LI') {
                 showService(e.target);
             }
         });
+    }
+
+    // --- CALENDAR APP ---
+    async function initCalendarApp(container) {
+        if (container.dataset.initialized) {
+            return; // Already initialized
+        }
+
+        container.innerHTML = `
+            <div class="calendar-app">
+                <div class="calendar-main">
+                    <div class="calendar-header">
+                        <h1 class="calendar-title">📅 Calendrier</h1>
+                        <div class="calendar-actions">
+                            <button class="calendar-btn" id="cal-sync-btn">🔄 Synchroniser</button>
+                            <button class="calendar-btn primary" id="cal-new-event-btn">+ Nouvel événement</button>
+                            <button class="calendar-btn" id="cal-settings-btn">⚙️ Configuration</button>
+                        </div>
+                    </div>
+
+                    <div class="month-navigation">
+                        <button class="month-nav-btn" id="cal-prev-month">‹</button>
+                        <div class="current-month" id="cal-current-month"></div>
+                        <button class="month-nav-btn" id="cal-next-month">›</button>
+                    </div>
+
+                    <div class="calendar-month-grid" id="cal-month-grid">
+                        <div class="calendar-loading">Chargement...</div>
+                    </div>
+                </div>
+
+                <div class="day-detail-sidebar" id="cal-day-detail">
+                    <button class="day-detail-close" id="cal-close-detail">✕</button>
+                    <div class="day-detail-header">
+                        <div class="day-detail-date" id="cal-detail-date"></div>
+                        <div class="day-detail-weekday" id="cal-detail-weekday"></div>
+                    </div>
+                    <div class="day-events-list" id="cal-detail-events"></div>
+                </div>
+            </div>
+
+            <!-- Event Modal -->
+            <div class="event-modal" id="cal-event-modal">
+                <div class="event-modal-content">
+                    <h2 class="event-modal-header" id="cal-modal-title">Nouvel événement</h2>
+                    <div class="form-group">
+                        <label>Titre</label>
+                        <input type="text" id="cal-event-title" placeholder="Titre de l'événement">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" id="cal-event-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Heure de début</label>
+                            <input type="time" id="cal-event-start-time">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Durée (heures)</label>
+                            <input type="number" id="cal-event-duration" value="1" min="0.5" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label>Destination</label>
+                            <select id="cal-event-destination">
+                                <option value="local">Calendrier local</option>
+                                <option value="google">Google Calendar</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="cal-event-calendar-selector" style="display:none;">
+                        <label>Calendrier Google</label>
+                        <select id="cal-event-calendar-id">
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Récurrence</label>
+                        <select id="cal-event-recurrence">
+                            <option value="">Aucune</option>
+                            <option value="DAILY">Quotidienne</option>
+                            <option value="WEEKLY">Hebdomadaire</option>
+                            <option value="MONTHLY">Mensuelle</option>
+                            <option value="YEARLY">Annuelle</option>
+                        </select>
+                    </div>
+                    <div class="form-row" id="cal-event-recurrence-end" style="display:none;">
+                        <div class="form-group">
+                            <label>Fin de récurrence</label>
+                            <select id="cal-event-recurrence-end-type">
+                                <option value="never">Jamais</option>
+                                <option value="date">À une date</option>
+                                <option value="count">Après X occurrences</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="cal-event-recurrence-end-date-group" style="display:none;">
+                            <label>Date de fin</label>
+                            <input type="date" id="cal-event-recurrence-end-date">
+                        </div>
+                        <div class="form-group" id="cal-event-recurrence-end-count-group" style="display:none;">
+                            <label>Nombre d'occurrences</label>
+                            <input type="number" id="cal-event-recurrence-end-count" value="10" min="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="cal-event-description" placeholder="Description (optionnel)"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="cal-event-delete-btn" class="danger-btn" style="display:none;">Supprimer</button>
+                        <button id="cal-event-cancel-btn">Annuler</button>
+                        <button id="cal-event-save-btn" class="primary-btn">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.dataset.initialized = 'true';
+
+        // State
+        let currentDate = new Date();
+        let selectedDate = null;
+        let localEvents = [];
+        let googleEvents = [];
+        let todoTasks = [];
+        let editingEvent = null;
+
+        // Elements
+        const monthGrid = container.querySelector('#cal-month-grid');
+        const currentMonthLabel = container.querySelector('#cal-current-month');
+        const prevMonthBtn = container.querySelector('#cal-prev-month');
+        const nextMonthBtn = container.querySelector('#cal-next-month');
+        const newEventBtn = container.querySelector('#cal-new-event-btn');
+        const syncBtn = container.querySelector('#cal-sync-btn');
+        const settingsBtn = container.querySelector('#cal-settings-btn');
+        const dayDetail = container.querySelector('#cal-day-detail');
+        const closeDetailBtn = container.querySelector('#cal-close-detail');
+        const eventModal = container.querySelector('#cal-event-modal');
+        const modalTitle = container.querySelector('#cal-modal-title');
+        const eventTitleInput = container.querySelector('#cal-event-title');
+        const eventDateInput = container.querySelector('#cal-event-date');
+        const eventStartTimeInput = container.querySelector('#cal-event-start-time');
+        const eventDurationInput = container.querySelector('#cal-event-duration');
+        const eventDestinationSelect = container.querySelector('#cal-event-destination');
+        const eventCalendarSelector = container.querySelector('#cal-event-calendar-selector');
+        const eventCalendarIdSelect = container.querySelector('#cal-event-calendar-id');
+        const eventRecurrenceSelect = container.querySelector('#cal-event-recurrence');
+        const eventRecurrenceEnd = container.querySelector('#cal-event-recurrence-end');
+        const eventRecurrenceEndType = container.querySelector('#cal-event-recurrence-end-type');
+        const eventRecurrenceEndDate = container.querySelector('#cal-event-recurrence-end-date');
+        const eventRecurrenceEndCount = container.querySelector('#cal-event-recurrence-end-count');
+        const eventRecurrenceEndDateGroup = container.querySelector('#cal-event-recurrence-end-date-group');
+        const eventRecurrenceEndCountGroup = container.querySelector('#cal-event-recurrence-end-count-group');
+        const eventDescriptionInput = container.querySelector('#cal-event-description');
+        const eventSaveBtn = container.querySelector('#cal-event-save-btn');
+        const eventCancelBtn = container.querySelector('#cal-event-cancel-btn');
+        const eventDeleteBtn = container.querySelector('#cal-event-delete-btn');
+
+        // Load data
+        async function loadData() {
+            try {
+                console.log("📂 Loading calendar data...");
+
+                // Show loading
+                container.dataset.syncing = 'true';
+                renderCalendar();
+
+                // Load local events
+                const calData = await window.api.calendar.getEvents();
+                localEvents = calData.events || [];
+                console.log(`📝 Loaded ${localEvents.length} local events`);
+
+                // Load todo tasks
+                const todoData = await window.api.getTodos();
+                todoTasks = (todoData.tasks || []).filter(t => t.dueDate && !t.completed);
+                console.log(`✅ Loaded ${todoTasks.length} todo tasks`);
+
+                // Load Google Calendar events if configured
+                const gcalConfig = await window.api.gcal.getConfig();
+                console.log("⚙️ Google Calendar config:", gcalConfig);
+
+                if (gcalConfig.connected) {
+                    console.log("🔗 Google Calendar is connected, syncing...");
+                    await syncGoogleCalendar();
+
+                    // Load available calendars for the selector
+                    await loadAvailableCalendars();
+                } else {
+                    console.log("⚠️ Google Calendar not connected");
+                }
+
+                // Hide loading
+                container.dataset.syncing = 'false';
+            } catch (e) {
+                console.error("❌ Error loading calendar data:", e);
+                container.dataset.syncing = 'false';
+            }
+        }
+
+        let availableGoogleCalendars = [];
+
+        async function loadAvailableCalendars() {
+            try {
+                const result = await window.api.gcal.listCalendars();
+                if (result.success) {
+                    availableGoogleCalendars = result.calendars;
+                }
+            } catch (e) {
+                console.error("Error loading available calendars:", e);
+            }
+        }
+
+        async function syncGoogleCalendar() {
+            try {
+                console.log("🔄 Starting Google Calendar sync...");
+
+                // Get selected calendars from config
+                const gcalConfig = await window.api.gcal.getConfig();
+                const calendarIds = gcalConfig.selectedCalendars && gcalConfig.selectedCalendars.length > 0
+                    ? gcalConfig.selectedCalendars
+                    : ['primary'];
+
+                console.log("📅 Syncing calendars:", calendarIds);
+
+                // Get calendar names
+                const calendarsListResult = await window.api.gcal.listCalendars();
+                const calendarsMap = {};
+                if (calendarsListResult.success) {
+                    calendarsListResult.calendars.forEach(cal => {
+                        calendarsMap[cal.id] = cal.name;
+                    });
+                }
+
+                const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+                console.log("📅 Date range:", {
+                    from: firstDay.toISOString(),
+                    to: lastDay.toISOString()
+                });
+
+                const result = await window.api.gcal.fetchEvents({
+                    timeMin: firstDay.toISOString(),
+                    timeMax: lastDay.toISOString(),
+                    calendarIds: calendarIds
+                });
+
+                console.log("📥 Google Calendar fetch result:", result);
+
+                if (result.success) {
+                    // Add calendar names to events
+                    googleEvents = (result.events || []).map(event => ({
+                        ...event,
+                        calendarName: calendarsMap[event.calendarId] || event.calendarId
+                    }));
+                    console.log(`✅ Loaded ${googleEvents.length} Google Calendar events from ${calendarIds.length} calendar(s)`);
+                } else {
+                    console.error("❌ Google Calendar fetch failed:", result.error);
+                }
+            } catch (e) {
+                console.error("❌ Error syncing Google Calendar:", e);
+            }
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            currentMonthLabel.textContent = currentDate.toLocaleDateString('fr-FR', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            monthGrid.innerHTML = '';
+
+            // Show loading if syncing
+            if (container.dataset.syncing === 'true') {
+                monthGrid.innerHTML = '<div class="calendar-loading"><div class="spinner"></div><div>Synchronisation en cours...</div></div>';
+                return;
+            }
+
+            // Add weekday headers
+            const weekdays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+            weekdays.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-weekday-header';
+                header.textContent = day;
+                monthGrid.appendChild(header);
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDay = firstDay.getDay();
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < startDay; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day-cell other-month';
+                monthGrid.appendChild(cell);
+            }
+
+            // Add days of month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day-cell';
+
+                const date = new Date(year, month, day);
+                const dateString = formatDate(date);
+
+                // Check if today
+                const today = new Date();
+                if (date.toDateString() === today.toDateString()) {
+                    cell.classList.add('today');
+                }
+
+                // Day number
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = day;
+                cell.appendChild(dayNumber);
+
+                // Events container
+                const eventsContainer = document.createElement('div');
+                eventsContainer.className = 'day-events';
+
+                // Get events for this day
+                const dayEvents = getAllEventsForDate(dateString);
+                const maxVisible = 3;
+
+                dayEvents.slice(0, maxVisible).forEach(event => {
+                    const pill = document.createElement('div');
+                    pill.className = `event-pill ${event.source}`;
+                    pill.textContent = event.title;
+
+                    // Apply Google Calendar color if available
+                    if (event.source === 'google' && event.colorId) {
+                        const color = getGoogleCalendarColor(event.colorId);
+                        if (color) {
+                            pill.style.background = color;
+                        }
+                    }
+
+                    pill.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openEventModal(event);
+                    });
+                    eventsContainer.appendChild(pill);
+                });
+
+                if (dayEvents.length > maxVisible) {
+                    const more = document.createElement('div');
+                    more.className = 'event-more';
+                    more.textContent = `+${dayEvents.length - maxVisible} autre(s)`;
+                    eventsContainer.appendChild(more);
+                }
+
+                cell.appendChild(eventsContainer);
+
+                // Click to show day detail
+                cell.addEventListener('click', () => {
+                    showDayDetail(date);
+                });
+
+                monthGrid.appendChild(cell);
+            }
+        }
+
+        function getAllEventsForDate(dateString) {
+            const events = [];
+
+            // Todo tasks
+            todoTasks.forEach(task => {
+                if (task.dueDate === dateString) {
+                    events.push({
+                        id: task.id,
+                        title: task.text,
+                        source: 'todo',
+                        time: '',
+                        description: '',
+                        data: task
+                    });
+                }
+            });
+
+            // Local events
+            localEvents.forEach(event => {
+                const eventDate = event.start.split('T')[0];
+                if (eventDate === dateString) {
+                    events.push({
+                        ...event,
+                        source: 'local',
+                        time: formatTime(event.start)
+                    });
+                }
+            });
+
+            // Google events
+            googleEvents.forEach(event => {
+                const eventDate = event.start.split('T')[0];
+                if (eventDate === dateString) {
+                    events.push({
+                        ...event,
+                        source: 'google',
+                        time: formatTime(event.start)
+                    });
+                }
+            });
+
+            if (events.length > 0) {
+                console.log(`📆 Events for ${dateString}:`, events);
+            }
+
+            // Sort by time
+            return events.sort((a, b) => {
+                if (!a.time) return 1;
+                if (!b.time) return -1;
+                return a.time.localeCompare(b.time);
+            });
+        }
+
+        function showDayDetail(date) {
+            selectedDate = date;
+            const dateString = formatDate(date);
+            const events = getAllEventsForDate(dateString);
+
+            container.querySelector('#cal-detail-date').textContent =
+                date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            container.querySelector('#cal-detail-weekday').textContent =
+                date.toLocaleDateString('fr-FR', { weekday: 'long' });
+
+            const eventsList = container.querySelector('#cal-detail-events');
+            eventsList.innerHTML = '';
+
+            if (events.length === 0) {
+                eventsList.innerHTML = '<div class="no-events">Aucun événement ce jour</div>';
+            } else {
+                events.forEach(event => {
+                    const card = document.createElement('div');
+                    card.className = `event-card ${event.source}`;
+
+                    const calendarName = event.calendarName || '';
+
+                    card.innerHTML = `
+                        <div class="event-card-title">${event.title}</div>
+                        ${event.time ? `<div class="event-card-time">${event.time}</div>` : ''}
+                        ${event.description ? `<div class="event-card-description">${event.description}</div>` : ''}
+                        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                            <span class="event-card-source ${event.source}">
+                                ${event.source === 'todo' ? 'Tâche' : event.source === 'local' ? 'Local' : 'Google'}
+                            </span>
+                            ${calendarName ? `<span class="event-card-calendar">${calendarName}</span>` : ''}
+                        </div>
+                    `;
+
+                    if (event.source !== 'todo') {
+                        card.addEventListener('click', () => openEventModal(event));
+                    }
+
+                    eventsList.appendChild(card);
+                });
+            }
+
+            dayDetail.classList.add('visible');
+        }
+
+        function openEventModal(event = null) {
+            editingEvent = event;
+
+            if (event) {
+                modalTitle.textContent = 'Modifier l\'événement';
+                eventTitleInput.value = event.title;
+                eventDateInput.value = event.start.split('T')[0];
+                eventStartTimeInput.value = formatTime(event.start);
+                eventDescriptionInput.value = event.description || '';
+                eventDestinationSelect.value = event.source;
+                eventDestinationSelect.disabled = true;
+                eventDeleteBtn.style.display = 'block';
+
+                // Hide calendar selector when editing
+                eventCalendarSelector.style.display = 'none';
+            } else {
+                modalTitle.textContent = 'Nouvel événement';
+                eventTitleInput.value = '';
+                eventDateInput.value = selectedDate ? formatDate(selectedDate) : formatDate(new Date());
+                eventStartTimeInput.value = '09:00';
+                eventDurationInput.value = '1';
+                eventDestinationSelect.value = 'local';
+                eventDestinationSelect.disabled = false;
+                eventDescriptionInput.value = '';
+                eventDeleteBtn.style.display = 'none';
+
+                // Populate calendar selector
+                populateCalendarSelector();
+                eventCalendarSelector.style.display = 'none';
+            }
+
+            eventModal.classList.add('visible');
+        }
+
+        function populateCalendarSelector() {
+            eventCalendarIdSelect.innerHTML = '';
+
+            availableGoogleCalendars.forEach(cal => {
+                const option = document.createElement('option');
+                option.value = cal.id;
+                option.textContent = cal.name;
+                if (cal.primary) option.textContent += ' (Principal)';
+                eventCalendarIdSelect.appendChild(option);
+            });
+        }
+
+        async function saveEvent() {
+            const title = eventTitleInput.value.trim();
+            if (!title) {
+                alert('Le titre est requis');
+                return;
+            }
+
+            const date = eventDateInput.value;
+            const time = eventStartTimeInput.value;
+            const duration = parseFloat(eventDurationInput.value);
+            const destination = eventDestinationSelect.value;
+            const description = eventDescriptionInput.value.trim();
+            const calendarId = eventCalendarIdSelect.value;
+            const recurrence = eventRecurrenceSelect.value;
+
+            const startDateTime = `${date}T${time}:00`;
+            const endDate = new Date(startDateTime);
+            endDate.setHours(endDate.getHours() + duration);
+            const endDateTime = endDate.toISOString().substring(0, 19);
+
+            const eventData = {
+                title,
+                description,
+                start: startDateTime,
+                end: endDateTime
+            };
+
+            // Build recurrence rule if specified
+            if (recurrence) {
+                let rrule = `FREQ=${recurrence}`;
+
+                const endType = eventRecurrenceEndType.value;
+                if (endType === 'date' && eventRecurrenceEndDate.value) {
+                    // Format: UNTIL=20251231T235959Z
+                    const untilDate = new Date(eventRecurrenceEndDate.value + 'T23:59:59');
+                    rrule += `;UNTIL=${untilDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+                } else if (endType === 'count' && eventRecurrenceEndCount.value) {
+                    rrule += `;COUNT=${eventRecurrenceEndCount.value}`;
+                }
+
+                eventData.recurrence = [rrule];
+            }
+
+            try {
+                if (editingEvent && editingEvent.source === 'google') {
+                    // Update Google event
+                    await window.api.gcal.updateEvent({
+                        eventId: editingEvent.id,
+                        eventData
+                    });
+                } else if (editingEvent && editingEvent.source === 'local') {
+                    // Update local event
+                    const index = localEvents.findIndex(e => e.id === editingEvent.id);
+                    if (index !== -1) {
+                        localEvents[index] = { ...eventData, id: editingEvent.id };
+                        await window.api.calendar.saveEvents({ events: localEvents });
+                    }
+                } else {
+                    // Create new event
+                    if (destination === 'google') {
+                        await window.api.gcal.createEvent({ ...eventData, calendarId });
+                    } else {
+                        const newEvent = {
+                            ...eventData,
+                            id: 'local-' + Date.now()
+                        };
+                        localEvents.push(newEvent);
+                        await window.api.calendar.saveEvents({ events: localEvents });
+                    }
+                }
+
+                eventModal.classList.remove('visible');
+                eventModal.classList.remove('visible');
+                await loadData();
+                renderCalendar();
+                if (selectedDate) showDayDetail(selectedDate);
+            } catch (e) {
+                alert('Erreur lors de la sauvegarde: ' + e.message);
+                console.error(e);
+            }
+        }
+
+        async function deleteEvent() {
+            if (!editingEvent) return;
+
+            if (!confirm('Voulez-vous vraiment supprimer cet événement ?')) return;
+
+            try {
+                if (editingEvent.source === 'google') {
+                    await window.api.gcal.deleteEvent(editingEvent.id);
+                } else if (editingEvent.source === 'local') {
+                    localEvents = localEvents.filter(e => e.id !== editingEvent.id);
+                    await window.api.calendar.saveEvents({ events: localEvents });
+                }
+
+                eventModal.classList.remove('visible');
+                await loadData();
+                renderCalendar();
+                if (selectedDate) showDayDetail(selectedDate);
+            } catch (e) {
+                alert('Erreur lors de la suppression: ' + e.message);
+                console.error(e);
+            }
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatTime(dateTimeString) {
+            if (!dateTimeString) return '';
+            if (!dateTimeString.includes('T')) return '';
+            return dateTimeString.split('T')[1].substring(0, 5);
+        }
+
+        // Google Calendar color mapping
+        function getGoogleCalendarColor(colorId) {
+            const colors = {
+                '1': '#a4bdfc', // Lavender
+                '2': '#7ae7bf', // Sage
+                '3': '#dbadff', // Grape
+                '4': '#ff887c', // Flamingo
+                '5': '#fbd75b', // Banana
+                '6': '#ffb878', // Tangerine
+                '7': '#46d6db', // Peacock
+                '8': '#e1e1e1', // Graphite
+                '9': '#5484ed', // Blueberry
+                '10': '#51b749', // Basil
+                '11': '#dc2127'  // Tomato
+            };
+            return colors[colorId] || null;
+        }
+
+        // Event listeners
+        prevMonthBtn.addEventListener('click', async () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            await loadData();
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', async () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            await loadData();
+            renderCalendar();
+        });
+
+        newEventBtn.addEventListener('click', () => openEventModal());
+
+        syncBtn.addEventListener('click', async () => {
+            syncBtn.textContent = '🔄 Synchronisation...';
+            syncBtn.disabled = true;
+            try {
+                await loadData();
+                renderCalendar();
+                if (selectedDate) showDayDetail(selectedDate);
+            } catch (e) {
+                console.error("Error during sync:", e);
+                alert("Erreur lors de la synchronisation: " + e.message);
+            }
+            syncBtn.textContent = '🔄 Synchroniser';
+            syncBtn.disabled = false;
+        });
+
+        settingsBtn.addEventListener('click', () => {
+            // Open settings modal to Google Calendar section
+            const settingsModal = document.getElementById('settings-modal');
+            const settingsBtn = document.getElementById('settings-btn');
+            if (settingsBtn) settingsBtn.click();
+        });
+
+        closeDetailBtn.addEventListener('click', () => {
+            dayDetail.classList.remove('visible');
+        });
+
+        eventCancelBtn.addEventListener('click', () => {
+            eventModal.classList.remove('visible');
+        });
+
+        eventDestinationSelect.addEventListener('change', () => {
+            if (eventDestinationSelect.value === 'google') {
+                eventCalendarSelector.style.display = 'block';
+            } else {
+                eventCalendarSelector.style.display = 'none';
+            }
+        });
+
+        eventRecurrenceSelect.addEventListener('change', () => {
+            if (eventRecurrenceSelect.value) {
+                eventRecurrenceEnd.style.display = 'flex';
+            } else {
+                eventRecurrenceEnd.style.display = 'none';
+            }
+        });
+
+        eventRecurrenceEndType.addEventListener('change', () => {
+            eventRecurrenceEndDateGroup.style.display = 'none';
+            eventRecurrenceEndCountGroup.style.display = 'none';
+
+            if (eventRecurrenceEndType.value === 'date') {
+                eventRecurrenceEndDateGroup.style.display = 'block';
+            } else if (eventRecurrenceEndType.value === 'count') {
+                eventRecurrenceEndCountGroup.style.display = 'block';
+            }
+        });
+
+        eventSaveBtn.addEventListener('click', saveEvent);
+        eventDeleteBtn.addEventListener('click', deleteEvent);
+
+        // Click outside modal to close
+        eventModal.addEventListener('click', (e) => {
+            if (e.target === eventModal) {
+                eventModal.classList.remove('visible');
+            }
+        });
+
+        // Initialize
+        await loadData();
+        renderCalendar();
     }
 
     initializeApp();

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenue - AppMaster</title>
+    <title>Bienvenue - Nexus App</title>
     <link rel="stylesheet" href="onboarding.css">
 </head>
 
@@ -13,7 +13,7 @@
         <!-- Step 1: Welcome -->
         <div class="onboarding-step active" id="step-welcome">
             <div class="step-content">
-                <h1>👋 Bienvenue dans AppMaster</h1>
+                <h1>👋 Bienvenue dans Nexus App</h1>
                 <p>Configurons ensemble votre espace de travail en quelques étapes simples.</p>
                 <button class="primary-btn" id="btn-start">Commencer</button>
             </div>
@@ -106,7 +106,99 @@
             </div>
         </div>
 
-        <!-- Step 4: Add Website (Optional) -->
+        <!-- Step 4: Calendar Configuration -->
+        <div class="onboarding-step" id="step-calendar-config">
+            <div class="step-content">
+                <h1>📅 Configuration du Calendrier</h1>
+                <p>Choisissez comment vous souhaitez gérer vos événements.</p>
+
+                <div class="service-options">
+                    <button class="service-option" data-calendar="local">
+                        <div class="service-icon">📆</div>
+                        <div class="service-name">Calendrier Local</div>
+                        <div class="service-desc">Stockage local uniquement</div>
+                    </button>
+                    <button class="service-option" data-calendar="google">
+                        <div class="service-icon">📅</div>
+                        <div class="service-name">Google Calendar</div>
+                        <div class="service-desc">Synchronisation avec Google</div>
+                    </button>
+                </div>
+
+                <button class="secondary-btn" id="btn-skip-calendar">Passer cette étape</button>
+            </div>
+        </div>
+
+        <!-- Step 4b: Google Calendar Configuration -->
+        <div class="onboarding-step" id="step-gcal-config">
+            <div class="step-content">
+                <h1>Configuration Google Calendar</h1>
+                <p>Configurez l'accès à Google Calendar en deux étapes.</p>
+
+                <h3>Étape 1 : Identifiants</h3>
+                <p class="info-text">Obtenez vos identifiants depuis la <a href="#" id="link-gcal-console">Google Cloud
+                        Console</a>.</p>
+
+                <div class="alert-box">
+                    <strong>⚠️ Important :</strong>
+                    <ul>
+                        <li>Activez "Google Calendar API" dans la bibliothèque</li>
+                        <li>URI de redirection : <code>http://localhost:3001/oauth2callback</code></li>
+                        <li>Ajoutez votre email dans les utilisateurs test</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label for="gcal-client-id">Client ID</label>
+                    <input type="text" id="gcal-client-id" placeholder="...apps.googleusercontent.com">
+                </div>
+                <div class="form-group">
+                    <label for="gcal-client-secret">Client Secret</label>
+                    <input type="password" id="gcal-client-secret" placeholder="Client Secret">
+                </div>
+
+                <h3>Étape 2 : Connexion</h3>
+                <p class="info-text">Cliquez pour autoriser l'application (une page web s'ouvrira).</p>
+                <button class="primary-btn" id="btn-gcal-auth" style="width: 100%; margin-bottom: 15px;">Connexion
+                    Google</button>
+                <div id="gcal-status" class="status-text"></div>
+
+                <div class="button-group">
+                    <button class="secondary-btn" id="btn-skip-gcal">Passer</button>
+                    <button class="primary-btn" id="btn-save-gcal" disabled>Continuer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: AI Selection -->
+        <div class="onboarding-step" id="step-ai-selection">
+            <div class="step-content">
+                <h1>🤖 Configuration de l'IA</h1>
+                <p>Choisissez votre assistant IA préféré (optionnel).</p>
+
+                <div class="service-options">
+                    <button class="service-option" data-ai="gemini">
+                        <div class="service-icon">🤖</div>
+                        <div class="service-name">Gemini</div>
+                        <div class="service-desc">Google AI</div>
+                    </button>
+                    <button class="service-option" data-ai="chatgpt">
+                        <div class="service-icon">💬</div>
+                        <div class="service-name">ChatGPT</div>
+                        <div class="service-desc">OpenAI</div>
+                    </button>
+                    <button class="service-option" data-ai="claude">
+                        <div class="service-icon">🧠</div>
+                        <div class="service-name">Claude</div>
+                        <div class="service-desc">Anthropic</div>
+                    </button>
+                </div>
+
+                <button class="secondary-btn" id="btn-skip-ai">Passer cette étape</button>
+            </div>
+        </div>
+
+        <!-- Step 6: Add Website (Optional) -->
         <div class="onboarding-step" id="step-add-website">
             <div class="step-content">
                 <h1>Ajouter un site web</h1>
@@ -126,7 +218,7 @@
             </div>
         </div>
 
-        <!-- Step 5: Completion -->
+        <!-- Step 7: Completion -->
         <div class="onboarding-step" id="step-complete">
             <div class="step-content">
                 <h1>C'est tout bon !</h1>

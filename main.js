@@ -6,6 +6,8 @@ const fs = require('fs');
 const setupTodo = require('./internal/todo');
 const setupWebdav = require('./internal/webdav');
 const setupGdrive = require('./internal/gdrive');
+const setupCalendar = require('./internal/calendar');
+const setupAi = require('./internal/ai');
 
 // --- Chemins de sauvegarde ---
 const userDataPath = app.getPath('userData');
@@ -22,6 +24,8 @@ app.whenReady().then(() => {
   setupTodo(ipcMain, userDataPath);
   setupWebdav(ipcMain, userDataPath);
   setupGdrive(ipcMain, userDataPath);
+  setupCalendar(ipcMain, userDataPath);
+  setupAi(ipcMain, userDataPath);
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -37,6 +41,10 @@ app.whenReady().then(() => {
     {
       name: "ToDo",
       url: "internal://todo"
+    },
+    {
+      name: "Calendrier",
+      url: "internal://calendar"
     },
     {
       name: "Fichiers WebDAV",

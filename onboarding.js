@@ -1,6 +1,6 @@
-// Onboarding flow logic
 let currentStep = 'step-welcome';
 let selectedService = null;
+let selectedCalendar = null;
 let configuredServices = [];
 
 // Step navigation
@@ -18,7 +18,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 // Step 2: Service Selection
-document.querySelectorAll('.service-option').forEach(btn => {
+document.querySelectorAll('[data-service]').forEach(btn => {
     btn.addEventListener('click', (e) => {
         const service = e.currentTarget.dataset.service;
         selectedService = service;
@@ -33,7 +33,7 @@ document.querySelectorAll('.service-option').forEach(btn => {
 
 document.getElementById('btn-skip-service').addEventListener('click', () => {
     selectedService = null;
-    showStep('step-add-website');
+    showStep('step-calendar-config');
 });
 
 // Step 3a: WebDAV Configuration
@@ -58,11 +58,11 @@ document.getElementById('btn-save-webdav').addEventListener('click', async () =>
         });
     }
 
-    showStep('step-add-website');
+    showStep('step-calendar-config');
 });
 
 document.getElementById('btn-skip-webdav').addEventListener('click', () => {
-    showStep('step-add-website');
+    showStep('step-calendar-config');
 });
 
 // Step 3b: Google Drive Configuration
@@ -112,14 +112,115 @@ document.getElementById('btn-gdrive-auth').addEventListener('click', async () =>
 });
 
 document.getElementById('btn-save-gdrive').addEventListener('click', () => {
-    showStep('step-add-website');
+    showStep('step-calendar-config');
 });
 
 document.getElementById('btn-skip-gdrive').addEventListener('click', () => {
+    showStep('step-calendar-config');
+});
+
+// Step 4: Calendar Selection
+document.querySelectorAll('[data-calendar]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const calendar = e.currentTarget.dataset.calendar;
+        selectedCalendar = calendar;
+
+        if (calendar === 'local') {
+            // Add calendar service to list
+            configuredServices.push({
+                name: "Calendrier",
+                url: "internal://calendar"
+            });
+            showStep('step-ai-selection');
+        } else if (calendar === 'google') {
+            showStep('step-gcal-config');
+        }
+    });
+});
+
+document.getElementById('btn-skip-calendar').addEventListener('click', () => {
+    selectedCalendar = null;
+    showStep('step-ai-selection');
+});
+
+// Step 4b: Google Calendar Configuration
+document.getElementById('link-gcal-console').addEventListener('click', (e) => {
+    e.preventDefault();
+    require('electron').shell.openExternal('https://console.cloud.google.com/apis/credentials');
+});
+
+document.getElementById('btn-gcal-auth').addEventListener('click', async () => {
+    const clientId = document.getElementById('gcal-client-id').value.trim();
+    const clientSecret = document.getElementById('gcal-client-secret').value.trim();
+    const statusEl = document.getElementById('gcal-status');
+    const continueBtn = document.getElementById('btn-save-gcal');
+
+    if (!clientId || !clientSecret) {
+        statusEl.textContent = "⚠️ Veuillez remplir les identifiants";
+        statusEl.className = 'status-text error';
+        return;
+    }
+
+    // Save config first
+    await window.api.gcal.saveConfig({
+        clientId,
+        clientSecret
+    });
+
+    statusEl.textContent = "Authentification en cours... Veuillez vérifier votre navigateur.";
+    statusEl.className = 'status-text';
+
+    const result = await window.api.gcal.auth();
+
+    if (result.success) {
+        statusEl.textContent = "✅ Connecté avec succès !";
+        statusEl.className = 'status-text success';
+        continueBtn.disabled = false;
+
+        // Add Calendar service to list
+        configuredServices.push({
+            name: "Calendrier",
+            url: "internal://calendar"
+        });
+    } else {
+        statusEl.textContent = "❌ Erreur: " + result.error;
+        statusEl.className = 'status-text error';
+    }
+});
+
+document.getElementById('btn-save-gcal').addEventListener('click', () => {
+    showStep('step-ai-selection');
+});
+
+document.getElementById('btn-skip-gcal').addEventListener('click', () => {
+    showStep('step-ai-selection');
+});
+
+// Step 5: AI Selection
+document.querySelectorAll('[data-ai]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const aiProvider = e.currentTarget.dataset.ai;
+
+        // Save AI configuration
+        await window.api.ai.saveConfig({
+            provider: aiProvider
+        });
+
+        // Add AI service to list
+        configuredServices.push({
+            name: "IA",
+            url: "internal://ai"
+        });
+
+        showStep('step-add-website');
+    });
+});
+
+document.getElementById('btn-skip-ai').addEventListener('click', () => {
     showStep('step-add-website');
 });
 
-// Step 4: Add Website
+// Step 6: Add Website
 document.getElementById('btn-save-website').addEventListener('click', async () => {
     const name = document.getElementById('website-name').value.trim();
     const url = document.getElementById('website-url').value.trim();

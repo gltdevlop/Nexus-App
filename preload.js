@@ -68,5 +68,27 @@ contextBridge.exposeInMainWorld('api', {
     delete: (path) => ipcRenderer.invoke('gdrive-delete', path),
     rename: (oldPath, newPath) => ipcRenderer.invoke('gdrive-rename', { oldPath, newPath }),
     mkdir: (path) => ipcRenderer.invoke('gdrive-mkdir', path)
+  },
+  // --- Calendar ---
+  calendar: {
+    getEvents: () => ipcRenderer.invoke('get-calendar-events'),
+    saveEvents: (events) => ipcRenderer.invoke('save-calendar-events', events)
+  },
+  gcal: {
+    getConfig: () => ipcRenderer.invoke('gcal-get-config'),
+    saveConfig: (config) => ipcRenderer.invoke('gcal-save-config', config),
+    auth: () => ipcRenderer.invoke('gcal-auth'),
+    disconnect: () => ipcRenderer.invoke('gcal-disconnect'),
+    listCalendars: () => ipcRenderer.invoke('gcal-list-calendars'),
+    fetchEvents: (params) => ipcRenderer.invoke('gcal-fetch-events', params),
+    createEvent: (eventData) => ipcRenderer.invoke('gcal-create-event', eventData),
+    updateEvent: (params) => ipcRenderer.invoke('gcal-update-event', params),
+    deleteEvent: (eventId) => ipcRenderer.invoke('gcal-delete-event', eventId)
+  },
+  // --- AI ---
+  ai: {
+    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
+    saveConfig: (config) => ipcRenderer.invoke('ai:saveConfig', config),
+    getProviders: () => ipcRenderer.invoke('ai:getProviders')
   }
 });

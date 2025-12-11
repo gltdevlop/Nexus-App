@@ -459,3 +459,204 @@ textarea::placeholder {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+
+/* --- DASHBOARD STYLES --- */
+.dashboard-wrapper {
+    width: 100%;
+    height: 100%;
+    padding: 40px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.dashboard-title {
+    font-size: 2.5em;
+    margin-bottom: 30px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dashboard-sections {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    max-width: 1400px;
+}
+
+#dashboard-events {
+    grid-column: 1 / -1;
+    /* Span across all columns */
+    border-left: 3px solid var(--accent-green);
+}
+
+.dashboard-section {
+    background: var(--surface-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.dashboard-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 122, 255, 0.15);
+}
+
+.dashboard-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.dashboard-section-header h2 {
+    font-size: 1.5em;
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.dashboard-count {
+    font-size: 2em;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dashboard-task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.dashboard-task-list li {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px 12px;
+    background-color: transparent;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    margin-bottom: 2px;
+}
+
+.dashboard-task-list li:last-child {
+    border-bottom: none;
+}
+
+.dashboard-task-list li:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dashboard-task-list .empty-state {
+    height: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.6;
+}
+
+/* Specific styling for overdue section */
+#dashboard-overdue {
+    border-left: 3px solid var(--error-color);
+}
+
+#dashboard-overdue .dashboard-section-header h2 {
+    color: var(--error-color);
+}
+
+/* Specific styling for today section */
+#dashboard-today {
+    border-left: 3px solid var(--accent-blue);
+}
+
+/* --- DASHBOARD EVENTS STYLES --- */
+.dashboard-event-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.dashboard-event-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s ease;
+}
+
+.dashboard-event-item:last-child {
+    border-bottom: none;
+}
+
+.dashboard-event-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.event-time-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.event-time-icon {
+    font-size: 1.1rem;
+}
+
+.event-time {
+    font-weight: 500;
+}
+
+.event-info-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.event-title {
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.event-source-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.badge-local {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.badge-google {
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    color: white;
+}
+
+.dashboard-event-list .empty-state {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+}
