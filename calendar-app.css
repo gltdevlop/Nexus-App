@@ -468,7 +468,28 @@
     padding: 30px;
     width: 90%;
     max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Scrollbar styling for modal content */
+.event-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.event-modal-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.event-modal-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.event-modal-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 .event-modal-header {
@@ -517,6 +538,36 @@
     resize: none;
     min-height: 80px;
 }
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.checkbox-label span {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.9em;
+    line-height: 1;
+}
+
+.checkbox-label:hover span {
+    color: var(--primary-color);
+}
+
 
 .form-row {
     display: grid;

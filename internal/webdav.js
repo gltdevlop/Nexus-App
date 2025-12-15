@@ -266,4 +266,44 @@ module.exports = function (ipcMain, userDataPath) {
         }
         return { success: false, canceled: true };
     });
+
+    // Copy file within WebDAV
+    ipcMain.handle('webdav-copy-file', async (event, params) => {
+        const { sourcePath, destPath } = params;
+        const client = await getWebDAVClient();
+        if (!client) throw new Error("Non configuré");
+        try {
+            await client.copyFile(sourcePath, destPath);
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // Download file as buffer (for cross-service copy)
+    ipcMain.handle('webdav-download-file-buffer', async (event, remotePath) => {
+        const client = await getWebDAVClient();
+        if (!client) throw new Error("Non configuré");
+        try {
+            const buffer = await client.getFileContents(remotePath);
+            // Convert to Uint8Array for IPC serialization
+            return new Uint8Array(buffer);
+        } catch (e) {
+            throw e;
+        }
+    });
+
+    // Upload file from buffer (for cross-service copy)
+    ipcMain.handle('webdav-upload-file-buffer', async (event, params) => {
+        const { remoteDir, fileName, buffer } = params;
+        const client = await getWebDAVClient();
+        if (!client) throw new Error("Non configuré");
+        try {
+            const remotePath = path.posix.join(remoteDir, fileName);
+            await client.putFileContents(remotePath, buffer);
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
 };

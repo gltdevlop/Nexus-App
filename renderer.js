@@ -29,9 +29,14 @@ window.addEventListener('DOMContentLoaded', () => {
     filesContextMenu.innerHTML = `
         <div class="context-menu-item" id="ctx-files-open">Ouvrir</div>
         <div class="context-menu-item" id="ctx-files-download">Télécharger</div>
+        <div class="context-menu-item" id="ctx-files-download-selected" style="display:none;">Télécharger la sélection</div>
+        <div class="context-menu-item" id="ctx-files-copy">Copier</div>
+        <div class="context-menu-item" id="ctx-files-cut">Couper</div>
+        <div class="context-menu-item" id="ctx-files-paste" style="display:none;">Coller</div>
         <div class="context-menu-item" id="ctx-files-new-folder">Nouveau dossier</div>
         <div class="context-menu-item" id="ctx-files-rename">Renommer</div>
         <div class="context-menu-item delete" id="ctx-files-delete">Supprimer</div>
+        <div class="context-menu-item delete" id="ctx-files-delete-selected" style="display:none;">Supprimer la sélection</div>
     `;
     document.body.appendChild(filesContextMenu);
 
@@ -41,6 +46,91 @@ window.addEventListener('DOMContentLoaded', () => {
     // --- STATE VARIABLES ---
     let filesAppInitialized = false;
     let currentPath = "/";
+
+    // Multi-selection and clipboard state
+    let selectedFiles = []; // Array of selected file objects
+    let lastSelectedIndex = -1; // For shift+click range selection
+    let clipboardFiles = []; // Files in clipboard
+    let clipboardOperation = null; // 'copy' or 'cut'
+    let clipboardProvider = null; // Source provider for clipboard files
+
+    // Navigation history for back/forward buttons
+    let navigationHistory = [];
+    let navigationIndex = -1;
+
+    // View mode state
+    let currentViewMode = 'list'; // 'grid' or 'list'
+
+    // Search and sort state
+    let searchQuery = '';
+    let sortBy = 'name'; // 'name', 'type', 'size', 'date'
+
+
+
+
+    let allVisibleFiles = []; // Track all files in current view for selection
+
+    // Drag selection rectangle state
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let selectionBox = null;
+
+    // --- KEYBOARD SHORTCUTS ---
+    document.addEventListener('keydown', (e) => {
+        // Only handle keyboard shortcuts when files app is visible
+        const filesAppVisible = filesAppContainer.style.display === 'flex';
+        if (!filesAppVisible) return;
+
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+        // Cmd/Ctrl + A: Select all
+        if (cmdOrCtrl && e.key === 'a') {
+            e.preventDefault();
+            selectAll();
+        }
+
+        // Cmd/Ctrl + C: Copy
+        if (cmdOrCtrl && e.key === 'c' && selectedFiles.length > 0) {
+            e.preventDefault();
+            const container = document.getElementById('files-app-container');
+            clipboardFiles = [...selectedFiles];
+            clipboardOperation = 'copy';
+            clipboardProvider = container.dataset.provider;
+
+            // Remove cut styling
+            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+
+            console.log(`Copied ${clipboardFiles.length} file(s) to clipboard`);
+        }
+
+        // Cmd/Ctrl + X: Cut
+        if (cmdOrCtrl && e.key === 'x' && selectedFiles.length > 0) {
+            e.preventDefault();
+            const container = document.getElementById('files-app-container');
+            clipboardFiles = [...selectedFiles];
+            clipboardOperation = 'cut';
+            clipboardProvider = container.dataset.provider;
+
+            // Add cut styling
+            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+            document.querySelectorAll('.file-item.selected').forEach(el => el.classList.add('cut'));
+
+            console.log(`Cut ${clipboardFiles.length} file(s) to clipboard`);
+        }
+
+        // Cmd/Ctrl + V: Paste
+        if (cmdOrCtrl && e.key === 'v' && clipboardFiles.length > 0) {
+            e.preventDefault();
+            filesContextMenu.querySelector('#ctx-files-paste').click();
+        }
+
+        // Escape: Clear selection
+        if (e.key === 'Escape') {
+            clearSelection();
+        }
+    });
 
     // ...
 
@@ -228,7 +318,231 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ...
+    // Copy files to clipboard
+    filesContextMenu.querySelector('#ctx-files-copy').addEventListener('click', () => {
+        const filesToCopy = selectedFiles.length > 0 ? selectedFiles : (contextMenuTargetFile ? [contextMenuTargetFile] : []);
+        if (filesToCopy.length > 0) {
+            const container = document.getElementById('files-app-container');
+            clipboardFiles = filesToCopy;
+            clipboardOperation = 'copy';
+            clipboardProvider = container.dataset.provider;
+
+            // Remove cut styling from all files
+            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+
+            console.log(`Copied ${clipboardFiles.length} file(s) to clipboard`);
+        }
+    });
+
+    // Cut files to clipboard
+    filesContextMenu.querySelector('#ctx-files-cut').addEventListener('click', () => {
+        const filesToCut = selectedFiles.length > 0 ? selectedFiles : (contextMenuTargetFile ? [contextMenuTargetFile] : []);
+        if (filesToCut.length > 0) {
+            const container = document.getElementById('files-app-container');
+            clipboardFiles = filesToCut;
+            clipboardOperation = 'cut';
+            clipboardProvider = container.dataset.provider;
+
+            // Add cut styling to selected files
+            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+            document.querySelectorAll('.file-item.selected').forEach(el => el.classList.add('cut'));
+
+            console.log(`Cut ${clipboardFiles.length} file(s) to clipboard`);
+        }
+    });
+
+    // Paste files from clipboard
+    filesContextMenu.querySelector('#ctx-files-paste').addEventListener('click', async () => {
+        if (clipboardFiles.length === 0) return;
+
+        const container = document.getElementById('files-app-container');
+        const destProvider = container.dataset.provider;
+        const grid = document.getElementById('files-grid');
+
+        try {
+            grid.innerHTML = '<div class="files-loading">Opération en cours...</div>';
+
+            for (const file of clipboardFiles) {
+                const fileName = file.basename;
+                let destPath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
+
+                if (clipboardProvider === destProvider) {
+                    // Same provider: use native copy/move
+                    if (clipboardOperation === 'copy') {
+                        // Copy within same provider
+                        await window.api[destProvider].copyFile(file.filename, destPath);
+                    } else {
+                        // Move (rename) within same provider
+                        await window.api[destProvider].rename(file.filename, destPath);
+                    }
+                } else {
+                    // Cross-provider: download and upload
+                    const buffer = await window.api[clipboardProvider].downloadFileBuffer(file.filename);
+                    await window.api[destProvider].uploadFileBuffer(currentPath, fileName, buffer);
+
+                    // If cut, delete from source
+                    if (clipboardOperation === 'cut') {
+                        await window.api[clipboardProvider].delete(file.filename);
+                    }
+                }
+            }
+
+            // Clear clipboard if cut operation
+            if (clipboardOperation === 'cut') {
+                clipboardFiles = [];
+                clipboardOperation = null;
+                clipboardProvider = null;
+            }
+
+            // Clear selection and refresh
+            clearSelection();
+            loadFiles(currentPath, container, destProvider);
+        } catch (e) {
+            alert("Erreur lors du collage: " + (e.message || e));
+            console.error(e);
+            loadFiles(currentPath, container, destProvider);
+        }
+    });
+
+    // Download selected files
+    filesContextMenu.querySelector('#ctx-files-download-selected').addEventListener('click', async () => {
+        if (selectedFiles.length === 0) return;
+
+        try {
+            const container = document.getElementById('files-app-container');
+            const provider = container.dataset.provider;
+
+            for (const file of selectedFiles) {
+                if (file.type === 'directory') {
+                    if (window.api[provider].downloadDirectory) {
+                        await window.api[provider].downloadDirectory(file.filename);
+                    }
+                } else {
+                    await window.api[provider].download(file.filename);
+                }
+            }
+        } catch (e) {
+            alert("Erreur lors du téléchargement: " + (e.message || e));
+            console.error(e);
+        }
+    });
+
+    // Delete selected files
+    filesContextMenu.querySelector('#ctx-files-delete-selected').addEventListener('click', async () => {
+        if (selectedFiles.length === 0) return;
+
+        if (confirm(`Voulez-vous vraiment supprimer ${selectedFiles.length} fichier(s) ?`)) {
+            try {
+                const container = document.getElementById('files-app-container');
+                const provider = container.dataset.provider;
+
+                for (const file of selectedFiles) {
+                    const result = await window.api[provider].delete(file.filename);
+                    if (result && result.error) throw new Error(result.error);
+                }
+
+                // Clear selection and refresh
+                clearSelection();
+                loadFiles(currentPath, container, provider);
+            } catch (e) {
+                alert("Erreur lors de la suppression: " + (e.message || e));
+            }
+        }
+    });
+
+    // --- SELECTION HELPER FUNCTIONS ---
+    function clearSelection() {
+        selectedFiles = [];
+        lastSelectedIndex = -1;
+        document.querySelectorAll('.file-item.selected').forEach(el => {
+            el.classList.remove('selected');
+            el.classList.remove('cut');
+        });
+    }
+
+    function selectFile(file, fileElement) {
+        if (!selectedFiles.find(f => f.filename === file.filename)) {
+            selectedFiles.push(file);
+            fileElement.classList.add('selected');
+        }
+    }
+
+    function deselectFile(file, fileElement) {
+        selectedFiles = selectedFiles.filter(f => f.filename !== file.filename);
+        fileElement.classList.remove('selected');
+        fileElement.classList.remove('cut');
+    }
+
+    function toggleFileSelection(file, fileElement) {
+        if (selectedFiles.find(f => f.filename === file.filename)) {
+            deselectFile(file, fileElement);
+        } else {
+            selectFile(file, fileElement);
+        }
+    }
+
+    function selectRange(startIndex, endIndex) {
+        const start = Math.min(startIndex, endIndex);
+        const end = Math.max(startIndex, endIndex);
+
+        const fileElements = document.querySelectorAll('.file-item');
+        for (let i = start; i <= end && i < allVisibleFiles.length; i++) {
+            selectFile(allVisibleFiles[i], fileElements[i]);
+        }
+    }
+
+    function selectAll() {
+        const fileElements = document.querySelectorAll('.file-item');
+        allVisibleFiles.forEach((file, index) => {
+            selectFile(file, fileElements[index]);
+        });
+    }
+
+    function updateDragSelection(left, top, width, height) {
+        const fileElements = document.querySelectorAll('.file-item');
+        const selectionRect = { left, top, right: left + width, bottom: top + height };
+
+        fileElements.forEach((el, index) => {
+            const rect = el.getBoundingClientRect();
+            const grid = document.getElementById('files-grid');
+            const gridRect = grid.getBoundingClientRect();
+
+            // Calculate element position relative to grid
+            const elLeft = rect.left - gridRect.left + grid.scrollLeft;
+            const elTop = rect.top - gridRect.top + grid.scrollTop;
+            const elRight = elLeft + rect.width;
+            const elBottom = elTop + rect.height;
+
+            // Check if rectangles intersect
+            const intersects = !(
+                elRight < selectionRect.left ||
+                elLeft > selectionRect.right ||
+                elBottom < selectionRect.top ||
+                elTop > selectionRect.bottom
+            );
+
+            if (intersects && index < allVisibleFiles.length) {
+                selectFile(allVisibleFiles[index], el);
+            }
+        });
+    }
+
+    // Update navigation button states
+    function updateNavigationButtons(container) {
+        const backBtn = container.querySelector('#files-back-btn');
+        const forwardBtn = container.querySelector('#files-forward-btn');
+        const upBtn = container.querySelector('#files-up-btn');
+
+        if (backBtn) {
+            backBtn.disabled = navigationIndex <= 0;
+        }
+        if (forwardBtn) {
+            forwardBtn.disabled = navigationIndex >= navigationHistory.length - 1;
+        }
+        if (upBtn) {
+            upBtn.disabled = currentPath === '/';
+        }
+    }
 
     async function initFilesApp(container, providerName) {
         // Always re-check config incase it changed, but we can keep DOM structure if init
@@ -241,13 +555,43 @@ window.addEventListener('DOMContentLoaded', () => {
                </div>
                <div id="files-main-view" class="files-app-container" style="display:none;">
                    <div class="files-toolbar">
-                       <button id="files-refresh-btn" title="Actualiser">↻</button>
-                       <button id="files-home-btn" title="Racine">🏠</button>
-                       <button id="files-upload-btn" title="Téléverser un fichier">+</button>
-                       <button id="files-upload-folder-btn" title="Téléverser un dossier">📂+</button>
+                       <div class="nav-buttons">
+                           <button id="files-back-btn" title="Précédent (Alt+←)">←</button>
+                           <button id="files-forward-btn" title="Suivant (Alt+→)">→</button>
+                           <button id="files-up-btn" title="Dossier parent (Alt+↑)">↑</button>
+                       </div>
                        <div id="files-breadcrumbs" class="breadcrumbs"></div>
+                       <div class="search-container">
+                           <input type="text" id="files-search" placeholder="Rechercher..." title="Rechercher des fichiers (Ctrl+F)">
+                           <button id="files-search-clear" title="Effacer" style="display:none;">✕</button>
+                       </div>
+                       <select id="files-sort" title="Trier par">
+                           <option value="name">Nom</option>
+                           <option value="type">Type</option>
+                           <option value="size">Taille</option>
+                           <option value="date">Date</option>
+                       </select>
+                       <div class="action-buttons">
+                           <button id="files-refresh-btn" title="Actualiser (F5)">↻</button>
+                           <button id="files-home-btn" title="Racine">🏠</button>
+                           <button id="files-upload-btn" title="Téléverser un fichier">📄 +</button>
+                           <button id="files-upload-folder-btn" title="Téléverser un dossier">📁 +</button>
+                           <div class="view-toggle">
+                               <button id="files-view-grid" title="Vue grille">▦</button>
+                               <button id="files-view-list" class="active" title="Vue liste">☰</button>
+                           </div>
+                       </div>
                    </div>
-                   <div id="files-grid" class="files-grid"></div>
+                   <div id="files-grid" class="files-grid" style="display:none;"></div>
+                   <div id="files-list" class="files-list">
+                       <div class="files-list-header">
+                           <div></div>
+                           <div>Nom</div>
+                           <div style="text-align: right;">Taille</div>
+                           <div>Date de modification</div>
+                       </div>
+                       <div id="files-list-content" class="files-list-content"></div>
+                   </div>
                </div>
                               <!-- Rename Modal -->
                 <div id="files-rename-modal" class="modal-overlay" style="display:none;">
@@ -320,6 +664,143 @@ window.addEventListener('DOMContentLoaded', () => {
                 loadFiles(currentPath, container, p);
             });
 
+            // Navigation buttons
+            container.querySelector('#files-back-btn').addEventListener('click', () => {
+                if (navigationIndex > 0) {
+                    navigationIndex--;
+                    const p = container.dataset.provider;
+                    const targetPath = navigationHistory[navigationIndex];
+                    loadFiles(targetPath, container, p, false); // false = don't add to history
+                }
+            });
+
+            container.querySelector('#files-forward-btn').addEventListener('click', () => {
+                if (navigationIndex < navigationHistory.length - 1) {
+                    navigationIndex++;
+                    const p = container.dataset.provider;
+                    const targetPath = navigationHistory[navigationIndex];
+                    loadFiles(targetPath, container, p, false); // false = don't add to history
+                }
+            });
+
+            container.querySelector('#files-up-btn').addEventListener('click', () => {
+                const p = container.dataset.provider;
+                if (currentPath !== '/') {
+                    const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
+                    loadFiles(parentPath, container, p);
+                }
+            });
+
+            // View toggle buttons
+            container.querySelector('#files-view-grid').addEventListener('click', (e) => {
+                currentViewMode = 'grid';
+                container.querySelector('#files-view-grid').classList.add('active');
+                container.querySelector('#files-view-list').classList.remove('active');
+
+                // Show grid, hide list
+                container.querySelector('#files-grid').style.display = 'grid';
+                container.querySelector('#files-list').style.display = 'none';
+
+                // Reload files in grid view
+                const p = container.dataset.provider;
+                loadFiles(currentPath, container, p, false);
+            });
+
+            container.querySelector('#files-view-list').addEventListener('click', (e) => {
+                currentViewMode = 'list';
+                container.querySelector('#files-view-list').classList.add('active');
+                container.querySelector('#files-view-grid').classList.remove('active');
+
+                // Show list, hide grid
+                container.querySelector('#files-grid').style.display = 'none';
+                container.querySelector('#files-list').style.display = 'flex';
+
+                // Reload files in list view
+                const p = container.dataset.provider;
+                loadFiles(currentPath, container, p, false);
+            });
+
+
+            // Search functionality
+            const searchInput = container.querySelector('#files-search');
+            const searchClear = container.querySelector('#files-search-clear');
+
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                searchClear.style.display = searchQuery ? 'block' : 'none';
+
+                // Re-render with filtered files
+                const p = container.dataset.provider;
+                loadFiles(currentPath, container, p, false);
+            });
+
+            searchClear.addEventListener('click', () => {
+                searchInput.value = '';
+                searchQuery = '';
+                searchClear.style.display = 'none';
+
+                const p = container.dataset.provider;
+                loadFiles(currentPath, container, p, false);
+            });
+
+            // Sort functionality
+            const sortSelect = container.querySelector('#files-sort');
+            sortSelect.addEventListener('change', (e) => {
+                sortBy = e.target.value;
+
+                // Re-render with new sort order
+                const p = container.dataset.provider;
+                loadFiles(currentPath, container, p, false);
+            });
+
+            // Keyboard shortcuts
+            container.querySelector('#files-main-view').addEventListener('keydown', (e) => {
+                // Don't trigger shortcuts when typing in input fields
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const modifier = isMac ? e.metaKey : e.altKey;
+
+                // Backspace or Alt+← (Cmd+← on Mac): Back
+                if (e.key === 'Backspace' || (modifier && e.key === 'ArrowLeft')) {
+                    e.preventDefault();
+                    if (navigationIndex > 0) {
+                        container.querySelector('#files-back-btn').click();
+                    }
+                }
+                // Alt+→ (Cmd+→ on Mac): Forward
+                else if (modifier && e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (navigationIndex < navigationHistory.length - 1) {
+                        container.querySelector('#files-forward-btn').click();
+                    }
+                }
+                // Alt+↑ (Cmd+↑ on Mac): Up
+                else if (modifier && e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (currentPath !== '/') {
+                        container.querySelector('#files-up-btn').click();
+                    }
+                }
+                // F5: Refresh
+                else if (e.key === 'F5') {
+                    e.preventDefault();
+                    container.querySelector('#files-refresh-btn').click();
+                }
+                // Ctrl+F (Cmd+F on Mac): Focus search
+                else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            });
+
+            // Make sure the files view can receive keyboard events
+            container.querySelector('#files-main-view').setAttribute('tabindex', '0');
+
+
             // Grid Context Menu (Target Empty Space)
             container.querySelector('#files-main-view').addEventListener('contextmenu', (e) => {
                 // Check if we clicked ON a file (handled below in loadFiles items) or empty space
@@ -339,6 +820,73 @@ window.addEventListener('DOMContentLoaded', () => {
                 filesContextMenu.style.left = `${e.clientX}px`;
                 filesContextMenu.style.display = 'block';
             });
+
+            // --- DRAG SELECTION RECTANGLE ---
+            const filesGrid = container.querySelector('#files-grid');
+            const filesMainView = container.querySelector('#files-main-view');
+
+            filesGrid.addEventListener('mousedown', (e) => {
+                // Only start drag selection on empty space (not on file items)
+                if (e.target.closest('.file-item')) return;
+
+                // Don't start drag selection if right-clicking
+                if (e.button !== 0) return;
+
+                // Clear selection when clicking on empty space
+                clearSelection();
+
+                isDragging = true;
+                const rect = filesGrid.getBoundingClientRect();
+                dragStartX = e.clientX - rect.left + filesGrid.scrollLeft;
+                dragStartY = e.clientY - rect.top + filesGrid.scrollTop;
+
+                // Create selection box element
+                if (!selectionBox) {
+                    selectionBox = document.createElement('div');
+                    selectionBox.className = 'selection-rectangle';
+                    filesGrid.appendChild(selectionBox);
+                }
+
+                selectionBox.style.left = dragStartX + 'px';
+                selectionBox.style.top = dragStartY + 'px';
+                selectionBox.style.width = '0px';
+                selectionBox.style.height = '0px';
+                selectionBox.style.display = 'block';
+
+                e.preventDefault();
+            });
+
+            filesGrid.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const rect = filesGrid.getBoundingClientRect();
+                const currentX = e.clientX - rect.left + filesGrid.scrollLeft;
+                const currentY = e.clientY - rect.top + filesGrid.scrollTop;
+
+                const left = Math.min(dragStartX, currentX);
+                const top = Math.min(dragStartY, currentY);
+                const width = Math.abs(currentX - dragStartX);
+                const height = Math.abs(currentY - dragStartY);
+
+                selectionBox.style.left = left + 'px';
+                selectionBox.style.top = top + 'px';
+                selectionBox.style.width = width + 'px';
+                selectionBox.style.height = height + 'px';
+
+                // Update selection based on rectangle intersection
+                updateDragSelection(left, top, width, height);
+            });
+
+            const endDragSelection = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                if (selectionBox) {
+                    selectionBox.style.display = 'none';
+                }
+            };
+
+            filesGrid.addEventListener('mouseup', endDragSelection);
+            filesGrid.addEventListener('mouseleave', endDragSelection);
 
             // Drag & Drop
             const dropZone = container.querySelector('#files-main-view');
@@ -1014,9 +1562,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadFiles(path, container, providerName) {
+    async function loadFiles(path, container, providerName, addToHistory = true) {
         if (!providerName) providerName = container.dataset.provider;
         currentPath = path;
+
+        // Manage navigation history
+        if (addToHistory) {
+            // Remove any forward history when navigating to a new path
+            if (navigationIndex < navigationHistory.length - 1) {
+                navigationHistory = navigationHistory.slice(0, navigationIndex + 1);
+            }
+            // Add new path to history
+            navigationHistory.push(path);
+            navigationIndex = navigationHistory.length - 1;
+        }
+
         const grid = container.querySelector('#files-grid');
         const breadcrumbs = container.querySelector('#files-breadcrumbs');
 
@@ -1062,75 +1622,199 @@ window.addEventListener('DOMContentLoaded', () => {
             grid.innerHTML = '';
 
             // Filter
-            const filteredItems = items.filter(item => {
-                if (showHidden) return true;
-                return !item.basename.startsWith('.');
+            let filteredItems = items.filter(item => {
+                if (!showHidden && item.basename.startsWith('.')) return false;
+
+                // Apply search filter
+                if (searchQuery && !item.basename.toLowerCase().includes(searchQuery)) {
+                    return false;
+                }
+
+                return true;
             });
 
             if (!filteredItems || filteredItems.length === 0) {
-                grid.innerHTML = '<div class="files-loading">Dossier vide</div>';
+                grid.innerHTML = '<div class="files-loading">Aucun fichier trouvé</div>';
+                const listContent = container.querySelector('#files-list-content');
+                if (listContent) listContent.innerHTML = '';
                 return;
             }
 
-            // Sort directories first
+            // Sort based on selected option
             filteredItems.sort((a, b) => {
-                if (a.type === 'directory' && b.type !== 'directory') return -1;
-                if (a.type !== 'directory' && b.type === 'directory') return 1;
-                return a.basename.localeCompare(b.basename);
+                switch (sortBy) {
+                    case 'type':
+                        // Directories first, then by type (extension)
+                        if (a.type === 'directory' && b.type !== 'directory') return -1;
+                        if (a.type !== 'directory' && b.type === 'directory') return 1;
+                        const extA = a.basename.split('.').pop().toLowerCase();
+                        const extB = b.basename.split('.').pop().toLowerCase();
+                        return extA.localeCompare(extB);
+
+                    case 'size':
+                        // Directories first, then by size
+                        if (a.type === 'directory' && b.type !== 'directory') return -1;
+                        if (a.type !== 'directory' && b.type === 'directory') return 1;
+                        return (b.size || 0) - (a.size || 0);
+
+                    case 'date':
+                        // Sort by modification date (newest first)
+                        const dateA = a.lastmod ? new Date(a.lastmod).getTime() : 0;
+                        const dateB = b.lastmod ? new Date(b.lastmod).getTime() : 0;
+                        return dateB - dateA;
+
+                    case 'name':
+                    default:
+                        // Directories first, then alphabetically
+                        if (a.type === 'directory' && b.type !== 'directory') return -1;
+                        if (a.type !== 'directory' && b.type === 'directory') return 1;
+                        return a.basename.localeCompare(b.basename);
+                }
             });
 
-            filteredItems.forEach(item => {
-                const el = document.createElement('div');
-                el.className = 'file-item';
 
-                const icon = getFileIcon(item);
+            // Helper function to add event listeners to file elements
+            function addFileEventListeners(el, item, index, container, providerName) {
+                // Click Action with multi-selection support
+                el.addEventListener('click', async (e) => {
+                    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                    const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+                    const shift = e.shiftKey;
 
-                el.innerHTML = `
-                    <div class="file-icon">${icon}</div>
-                    <div class="file-name">${item.basename}</div>
-                    <div class="file-meta">${formatSize(item.size)}</div>
-                `;
-
-                // Click Action
-                el.addEventListener('click', async () => {
-                    if (item.type === 'directory') {
-                        loadFiles(item.filename, container, providerName);
+                    if (cmdOrCtrl && shift && lastSelectedIndex !== -1) {
+                        // Cmd/Ctrl+Shift+Click: Extend selection
+                        e.preventDefault();
+                        selectRange(lastSelectedIndex, index);
+                        lastSelectedIndex = index;
+                    } else if (cmdOrCtrl) {
+                        // Cmd/Ctrl+Click: Toggle selection
+                        e.preventDefault();
+                        toggleFileSelection(item, el);
+                        lastSelectedIndex = index;
+                    } else if (shift && lastSelectedIndex !== -1) {
+                        // Shift+Click: Range selection
+                        e.preventDefault();
+                        clearSelection();
+                        selectRange(lastSelectedIndex, index);
+                        lastSelectedIndex = index;
                     } else {
-                        // Open File
-                        const originalText = el.querySelector('.file-name').textContent;
-                        el.querySelector('.file-name').textContent = "Ouverture...";
-                        try {
-                            const api = window.api[providerName];
-                            await api.open(item.filename);
-                        } catch (e) {
-                            alert("Erreur lors de l'ouverture du fichier");
-                        } finally {
-                            el.querySelector('.file-name').textContent = originalText;
+                        // Normal click: Clear selection and open
+                        clearSelection();
+                        lastSelectedIndex = index;
+
+                        if (item.type === 'directory') {
+                            loadFiles(item.filename, container, providerName);
+                        } else {
+                            // Open File
+                            const nameEl = el.querySelector('.file-name') || el.querySelector('.file-list-name');
+                            const originalText = nameEl.textContent;
+                            nameEl.textContent = "Ouverture...";
+                            try {
+                                const api = window.api[providerName];
+                                await api.open(item.filename);
+                            } catch (e) {
+                                alert("Erreur lors de l'ouverture du fichier");
+                            } finally {
+                                nameEl.textContent = originalText;
+                            }
                         }
                     }
                 });
 
-                // Context Menu (Right Click) for Download
+                // Context Menu (Right Click)
                 el.addEventListener('contextmenu', async (e) => {
                     e.preventDefault();
-                    e.stopPropagation(); // Prevent grid listener
+                    e.stopPropagation();
 
                     contextMenuTargetFile = item;
 
-                    // Reset menu items visibility for FILES
-                    filesContextMenu.querySelector('#ctx-files-open').style.display = 'block';
-                    filesContextMenu.querySelector('#ctx-files-download').style.display = 'block';
-                    filesContextMenu.querySelector('#ctx-files-rename').style.display = 'block';
-                    filesContextMenu.querySelector('#ctx-files-delete').style.display = 'block';
+                    // If right-clicking on a non-selected file, select only that file
+                    if (!selectedFiles.find(f => f.filename === item.filename)) {
+                        clearSelection();
+                        selectFile(item, el);
+                    }
+
+                    // Update menu visibility based on selection
+                    const hasSelection = selectedFiles.length > 0;
+                    const hasClipboard = clipboardFiles.length > 0;
+
+                    filesContextMenu.querySelector('#ctx-files-open').style.display = hasSelection && selectedFiles.length === 1 ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-download').style.display = hasSelection && selectedFiles.length === 1 ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-download-selected').style.display = hasSelection && selectedFiles.length > 1 ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-copy').style.display = 'block';
+                    filesContextMenu.querySelector('#ctx-files-cut').style.display = 'block';
+                    filesContextMenu.querySelector('#ctx-files-paste').style.display = hasClipboard ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-rename').style.display = hasSelection && selectedFiles.length === 1 ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-delete').style.display = hasSelection && selectedFiles.length === 1 ? 'block' : 'none';
+                    filesContextMenu.querySelector('#ctx-files-delete-selected').style.display = hasSelection && selectedFiles.length > 1 ? 'block' : 'none';
                     filesContextMenu.querySelector('#ctx-files-new-folder').style.display = 'none';
 
                     filesContextMenu.style.top = `${e.clientY}px`;
                     filesContextMenu.style.left = `${e.clientX}px`;
                     filesContextMenu.style.display = 'block';
                 });
+            }
 
-                grid.appendChild(el);
-            });
+            // Clear selection when loading new directory
+            clearSelection();
+            allVisibleFiles = filteredItems;
+
+            const listContent = container.querySelector('#files-list-content');
+
+            // Render based on current view mode
+            if (currentViewMode === 'list') {
+                // List View Rendering
+                grid.innerHTML = '';
+                listContent.innerHTML = '';
+
+                filteredItems.forEach((item, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'file-list-item';
+
+                    const icon = getFileIcon(item);
+                    const formattedDate = item.lastmod ? new Date(item.lastmod).toLocaleString('fr-FR', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : '-';
+
+                    el.innerHTML = `
+                        <div class="file-list-icon">${icon}</div>
+                        <div class="file-list-name">${item.basename}</div>
+                        <div class="file-list-size">${formatSize(item.size)}</div>
+                        <div class="file-list-date">${formattedDate}</div>
+                    `;
+
+                    // Add event listeners (same as grid view)
+                    addFileEventListeners(el, item, index, container, providerName);
+
+                    listContent.appendChild(el);
+                });
+            } else {
+                // Grid View Rendering (existing code)
+                grid.innerHTML = '';
+                listContent.innerHTML = '';
+
+                filteredItems.forEach((item, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'file-item';
+
+                    const icon = getFileIcon(item);
+
+                    el.innerHTML = `
+                        <div class="file-icon">${icon}</div>
+                        <div class="file-name">${item.basename}</div>
+                        <div class="file-meta">${formatSize(item.size)}</div>
+                    `;
+
+                    // Add event listeners
+                    addFileEventListeners(el, item, index, container, providerName);
+
+                    grid.appendChild(el);
+                });
+            }
 
         } catch (e) {
             console.error(e);
@@ -1141,7 +1825,7 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (e.message.includes("Non configuré")) {
                 errorMsg = "Service non configuré.";
             } else {
-                errorMsg += " " + (e.message || "");
+                errorMsg = e.message || "Erreur inconnue.";
             }
             grid.innerHTML = `<div class="files-loading" style="color:red; flex-direction:column; padding:20px; text-align:center;">${errorMsg}</div>`;
 
@@ -1155,6 +1839,9 @@ window.addEventListener('DOMContentLoaded', () => {
             };
             grid.appendChild(resetBtn);
         }
+
+        // Update navigation button states
+        updateNavigationButtons(container);
     }
 
     function getFileIcon(item) {
@@ -2414,21 +3101,33 @@ window.addEventListener('DOMContentLoaded', () => {
                         <label>Titre</label>
                         <input type="text" id="cal-event-title" placeholder="Titre de l'événement">
                     </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="cal-event-all-day">
+                            <span>Journée entière</span>
+                        </label>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Date</label>
+                            <label>Date de début</label>
                             <input type="date" id="cal-event-date">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="cal-event-start-time-group">
                             <label>Heure de début</label>
                             <input type="time" id="cal-event-start-time">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Durée (heures)</label>
-                            <input type="number" id="cal-event-duration" value="1" min="0.5" step="0.5">
+                            <label>Date de fin</label>
+                            <input type="date" id="cal-event-end-date">
                         </div>
+                        <div class="form-group" id="cal-event-end-time-group">
+                            <label>Heure de fin</label>
+                            <input type="time" id="cal-event-end-time">
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label>Destination</label>
                             <select id="cal-event-destination">
@@ -2507,9 +3206,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const eventModal = container.querySelector('#cal-event-modal');
         const modalTitle = container.querySelector('#cal-modal-title');
         const eventTitleInput = container.querySelector('#cal-event-title');
+        const eventAllDayCheckbox = container.querySelector('#cal-event-all-day');
         const eventDateInput = container.querySelector('#cal-event-date');
+        const eventEndDateInput = container.querySelector('#cal-event-end-date');
         const eventStartTimeInput = container.querySelector('#cal-event-start-time');
-        const eventDurationInput = container.querySelector('#cal-event-duration');
+        const eventEndTimeInput = container.querySelector('#cal-event-end-time');
+        const eventStartTimeGroup = container.querySelector('#cal-event-start-time-group');
+        const eventEndTimeGroup = container.querySelector('#cal-event-end-time-group');
         const eventDestinationSelect = container.querySelector('#cal-event-destination');
         const eventCalendarSelector = container.querySelector('#cal-event-calendar-selector');
         const eventCalendarIdSelect = container.querySelector('#cal-event-calendar-id');
@@ -2737,6 +3440,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         function getAllEventsForDate(dateString) {
             const events = [];
+            const targetDate = new Date(dateString + 'T00:00:00');
 
             // Todo tasks
             todoTasks.forEach(task => {
@@ -2752,10 +3456,24 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Local events
+            // Helper function to check if event spans the target date
+            const eventSpansDate = (eventStart, eventEnd, targetDateStr) => {
+                const start = new Date(eventStart.includes('T') ? eventStart : eventStart + 'T00:00:00');
+                const end = new Date(eventEnd.includes('T') ? eventEnd : eventEnd + 'T00:00:00');
+                const target = new Date(targetDateStr + 'T00:00:00');
+
+                // For all-day events, end date is exclusive (day after last day)
+                // So we check if target is >= start and < end
+                return target >= start && target < end;
+            };
+
+            // Local events (including multi-day)
             localEvents.forEach(event => {
-                const eventDate = event.start.split('T')[0];
-                if (eventDate === dateString) {
+                const eventStartDate = event.start.split('T')[0];
+                const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+
+                // Check if this event spans the target date
+                if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
                     events.push({
                         ...event,
                         source: 'local',
@@ -2764,10 +3482,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Google events
+            // Google events (including multi-day)
             googleEvents.forEach(event => {
-                const eventDate = event.start.split('T')[0];
-                if (eventDate === dateString) {
+                const eventStartDate = event.start.split('T')[0];
+                const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+
+                // Check if this event spans the target date
+                if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
                     events.push({
                         ...event,
                         source: 'google',
@@ -2839,20 +3560,35 @@ window.addEventListener('DOMContentLoaded', () => {
             if (event) {
                 modalTitle.textContent = 'Modifier l\'événement';
                 eventTitleInput.value = event.title;
+
+                // Check if event is all-day (no time component in start/end)
+                const isAllDay = !event.start.includes('T') || event.start.endsWith('T00:00:00');
+                eventAllDayCheckbox.checked = isAllDay;
+
+                // Set dates
                 eventDateInput.value = event.start.split('T')[0];
-                eventStartTimeInput.value = formatTime(event.start);
+                if (event.end) {
+                    const endDate = event.end.split('T')[0];
+                    eventEndDateInput.value = endDate;
+                } else {
+                    eventEndDateInput.value = event.start.split('T')[0];
+                }
+
+                // Set times
+                if (!isAllDay) {
+                    eventStartTimeInput.value = formatTime(event.start) || '09:00';
+                    eventEndTimeInput.value = formatTime(event.end) || '10:00';
+                    eventStartTimeGroup.style.display = 'block';
+                    eventEndTimeGroup.style.display = 'block';
+                } else {
+                    eventStartTimeGroup.style.display = 'none';
+                    eventEndTimeGroup.style.display = 'none';
+                }
+
                 eventDescriptionInput.value = event.description || '';
                 eventDestinationSelect.value = event.source;
                 eventDestinationSelect.disabled = true;
                 eventDeleteBtn.style.display = 'block';
-
-                // Calculate duration
-                if (event.end) {
-                    const start = new Date(event.start);
-                    const end = new Date(event.end);
-                    const durationHours = (end - start) / (1000 * 60 * 60);
-                    eventDurationInput.value = durationHours;
-                }
 
                 // Populate recurrence fields if event has recurrence
                 console.log('🔍 Event object:', event);
@@ -2908,9 +3644,21 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 modalTitle.textContent = 'Nouvel événement';
                 eventTitleInput.value = '';
-                eventDateInput.value = selectedDate ? formatDate(selectedDate) : formatDate(new Date());
+
+                // Set default dates
+                const defaultDate = selectedDate ? formatDate(selectedDate) : formatDate(new Date());
+                eventDateInput.value = defaultDate;
+                eventEndDateInput.value = defaultDate;
+
+                // Set default times
                 eventStartTimeInput.value = '09:00';
-                eventDurationInput.value = '1';
+                eventEndTimeInput.value = '10:00';
+
+                // Default to non-all-day
+                eventAllDayCheckbox.checked = false;
+                eventStartTimeGroup.style.display = 'block';
+                eventEndTimeGroup.style.display = 'block';
+
                 eventDestinationSelect.value = 'local';
                 eventDestinationSelect.disabled = false;
                 eventDescriptionInput.value = '';
@@ -2918,10 +3666,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventRecurrenceEnd.style.display = 'none';
                 eventDeleteBtn.style.display = 'none';
 
-                // Populate calendar selector
+                // Populate calendar selector and hide by default
                 populateCalendarSelector();
                 eventCalendarSelector.style.display = 'none';
             }
+
+            // Trigger destination change event to update calendar selector visibility
+            const changeEvent = new Event('change');
+            eventDestinationSelect.dispatchEvent(changeEvent);
 
             eventModal.classList.add('visible');
         }
@@ -2929,13 +3681,24 @@ window.addEventListener('DOMContentLoaded', () => {
         function populateCalendarSelector() {
             eventCalendarIdSelect.innerHTML = '';
 
-            availableGoogleCalendars.forEach(cal => {
+            if (availableGoogleCalendars.length === 0) {
+                // If no calendars loaded, add a default option
                 const option = document.createElement('option');
-                option.value = cal.id;
-                option.textContent = cal.name;
-                if (cal.primary) option.textContent += ' (Principal)';
+                option.value = 'primary';
+                option.textContent = 'Calendrier principal';
                 eventCalendarIdSelect.appendChild(option);
-            });
+            } else {
+                availableGoogleCalendars.forEach(cal => {
+                    const option = document.createElement('option');
+                    option.value = cal.id;
+                    option.textContent = cal.name;
+                    if (cal.primary) {
+                        option.textContent += ' (Principal)';
+                        option.selected = true; // Select primary by default
+                    }
+                    eventCalendarIdSelect.appendChild(option);
+                });
+            }
         }
 
         async function saveEvent() {
@@ -2945,25 +3708,57 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const date = eventDateInput.value;
-            const time = eventStartTimeInput.value;
-            const duration = parseFloat(eventDurationInput.value);
+            const startDate = eventDateInput.value;
+            const endDate = eventEndDateInput.value;
+            const startTime = eventStartTimeInput.value;
+            const endTime = eventEndTimeInput.value;
+            const isAllDay = eventAllDayCheckbox.checked;
             const destination = eventDestinationSelect.value;
             const description = eventDescriptionInput.value.trim();
             const calendarId = eventCalendarIdSelect.value;
             const recurrence = eventRecurrenceSelect.value;
 
-            const startDateTime = `${date}T${time}:00`;
-            const endDate = new Date(startDateTime);
-            endDate.setHours(endDate.getHours() + duration);
-            const endDateTime = endDate.toISOString().substring(0, 19);
+            // Validate dates
+            if (!startDate || !endDate) {
+                alert('Les dates de début et de fin sont requises');
+                return;
+            }
 
-            const eventData = {
+            if (new Date(endDate) < new Date(startDate)) {
+                alert('La date de fin doit être après la date de début');
+                return;
+            }
+
+            let eventData = {
                 title,
                 description,
-                start: startDateTime,
-                end: endDateTime
+                isAllDay
             };
+
+            // Build start and end date/time based on all-day flag
+            if (isAllDay) {
+                // For all-day events, use date format only
+                eventData.start = startDate;
+                // For multi-day all-day events, end date should be the day AFTER the last day
+                const endDateObj = new Date(endDate);
+                endDateObj.setDate(endDateObj.getDate() + 1);
+                eventData.end = formatDate(endDateObj);
+            } else {
+                // For timed events, include time
+                if (!startTime || !endTime) {
+                    alert('Les heures de début et de fin sont requises pour les événements non journée entière');
+                    return;
+                }
+
+                eventData.start = `${startDate}T${startTime}:00`;
+                eventData.end = `${endDate}T${endTime}:00`;
+
+                // Validate that end time is after start time
+                if (new Date(eventData.end) <= new Date(eventData.start)) {
+                    alert('L\'heure de fin doit être après l\'heure de début');
+                    return;
+                }
+            }
 
             // Build recurrence rule if specified
             if (recurrence) {
@@ -3117,6 +3912,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
         eventCancelBtn.addEventListener('click', () => {
             eventModal.classList.remove('visible');
+        });
+
+        // All-day checkbox listener
+        eventAllDayCheckbox.addEventListener('change', () => {
+            const isAllDay = eventAllDayCheckbox.checked;
+            eventStartTimeGroup.style.display = isAllDay ? 'none' : 'block';
+            eventEndTimeGroup.style.display = isAllDay ? 'none' : 'block';
+
+            // Set default times if switching to non-all-day
+            if (!isAllDay && !eventStartTimeInput.value) {
+                eventStartTimeInput.value = '09:00';
+            }
+            if (!isAllDay && !eventEndTimeInput.value) {
+                eventEndTimeInput.value = '10:00';
+            }
         });
 
         eventDestinationSelect.addEventListener('change', () => {

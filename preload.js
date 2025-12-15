@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld('api', {
     rename: (oldPath, newPath) => ipcRenderer.invoke('webdav-rename', { oldPath, newPath }),
     downloadDirectory: (remotePath) => ipcRenderer.invoke('webdav-download-directory', remotePath),
     mkdir: (path) => ipcRenderer.invoke('webdav-mkdir', path),
+    copyFile: (sourcePath, destPath) => ipcRenderer.invoke('webdav-copy-file', { sourcePath, destPath }),
+    downloadFileBuffer: (remotePath) => ipcRenderer.invoke('webdav-download-file-buffer', remotePath),
+    uploadFileBuffer: (remoteDir, fileName, buffer) => ipcRenderer.invoke('webdav-upload-file-buffer', { remoteDir, fileName, buffer }),
   },
   gdrive: {
     getConfig: () => ipcRenderer.invoke('gdrive-get-config'),
@@ -73,7 +76,10 @@ contextBridge.exposeInMainWorld('api', {
     uploadFile: (path) => ipcRenderer.invoke('gdrive-upload-file', path),
     delete: (path) => ipcRenderer.invoke('gdrive-delete', path),
     rename: (oldPath, newPath) => ipcRenderer.invoke('gdrive-rename', { oldPath, newPath }),
-    mkdir: (path) => ipcRenderer.invoke('gdrive-mkdir', path)
+    mkdir: (path) => ipcRenderer.invoke('gdrive-mkdir', path),
+    copyFile: (sourcePath, destPath) => ipcRenderer.invoke('gdrive-copy-file', { sourcePath, destPath }),
+    downloadFileBuffer: (remotePath) => ipcRenderer.invoke('gdrive-download-file-buffer', remotePath),
+    uploadFileBuffer: (remoteDir, fileName, buffer) => ipcRenderer.invoke('gdrive-upload-file-buffer', { remoteDir, fileName, buffer }),
   },
   // --- Calendar ---
   calendar: {

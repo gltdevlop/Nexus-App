@@ -323,5 +323,80 @@ module.exports = function (ipcMain, userDataPath) {
         } catch (e) { return { success: false, error: e.message }; }
     });
 
+    // Copy file within Google Drive
+    ipcMain.handle('gdrive-copy-file', async (event, params) => {
+        const { sourcePath, destPath } = params;
+        const client = await getClient();
+        const drive = google.drive({ version: 'v3', auth: client });
+        try {
+            const sourceFileId = await getFileIdFromPath(drive, sourcePath);
+            const destParentPath = path.dirname(destPath);
+            const destName = path.basename(destPath);
+            const destParentId = await getFileIdFromPath(drive, destParentPath);
+
+            await drive.files.copy({
+                fileId: sourceFileId,
+                resource: {
+                    name: destName,
+                    parents: [destParentId]
+                }
+            });
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // Download file as buffer (for cross-service copy)
+    ipcMain.handle('gdrive-download-file-buffer', async (event, remotePath) => {
+        const client = await getClient();
+        const drive = google.drive({ version: 'v3', auth: client });
+        try {
+            const fileId = await getFileIdFromPath(drive, remotePath);
+            const res = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
+
+            // Collect stream into buffer
+            const chunks = [];
+            const buffer = await new Promise((resolve, reject) => {
+                res.data
+                    .on('data', chunk => chunks.push(chunk))
+                    .on('end', () => resolve(Buffer.concat(chunks)))
+                    .on('error', err => reject(err));
+            });
+
+            // Convert to Uint8Array for IPC serialization
+            return new Uint8Array(buffer);
+        } catch (e) {
+            throw e;
+        }
+    });
+
+    // Upload file from buffer (for cross-service copy)
+    ipcMain.handle('gdrive-upload-file-buffer', async (event, params) => {
+        const { remoteDir, fileName, buffer } = params;
+        const client = await getClient();
+        const drive = google.drive({ version: 'v3', auth: client });
+        try {
+            const parentId = await getFileIdFromPath(drive, remoteDir);
+            const { Readable } = require('stream');
+
+            // Ensure buffer is a Buffer object
+            const bufferData = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+            const bufferStream = Readable.from(bufferData);
+
+            await drive.files.create({
+                resource: { name: fileName, parents: [parentId] },
+                media: {
+                    mimeType: 'application/octet-stream',
+                    body: bufferStream
+                },
+                fields: 'id'
+            });
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
     // Upload Dir not implemented for MVP as requested, but structure allows it.
 };

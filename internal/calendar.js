@@ -237,15 +237,30 @@ module.exports = function (ipcMain, userDataPath) {
             const googleEvent = {
                 summary: eventData.title,
                 description: eventData.description || '',
-                start: {
+            };
+
+            // Handle all-day vs timed events
+            if (eventData.isAllDay) {
+                // All-day events use 'date' field (YYYY-MM-DD format)
+                googleEvent.start = {
+                    date: eventData.start,
+                    timeZone: 'Europe/Paris',
+                };
+                googleEvent.end = {
+                    date: eventData.end,
+                    timeZone: 'Europe/Paris',
+                };
+            } else {
+                // Timed events use 'dateTime' field (ISO 8601 format)
+                googleEvent.start = {
                     dateTime: eventData.start,
                     timeZone: 'Europe/Paris',
-                },
-                end: {
+                };
+                googleEvent.end = {
                     dateTime: eventData.end,
                     timeZone: 'Europe/Paris',
-                },
-            };
+                };
+            }
 
             // Add recurrence if specified
             if (eventData.recurrence && eventData.recurrence.length > 0) {
@@ -275,15 +290,30 @@ module.exports = function (ipcMain, userDataPath) {
             const googleEvent = {
                 summary: eventData.title,
                 description: eventData.description || '',
-                start: {
+            };
+
+            // Handle all-day vs timed events
+            if (eventData.isAllDay) {
+                // All-day events use 'date' field (YYYY-MM-DD format)
+                googleEvent.start = {
+                    date: eventData.start,
+                    timeZone: 'Europe/Paris',
+                };
+                googleEvent.end = {
+                    date: eventData.end,
+                    timeZone: 'Europe/Paris',
+                };
+            } else {
+                // Timed events use 'dateTime' field (ISO 8601 format)
+                googleEvent.start = {
                     dateTime: eventData.start,
                     timeZone: 'Europe/Paris',
-                },
-                end: {
+                };
+                googleEvent.end = {
                     dateTime: eventData.end,
                     timeZone: 'Europe/Paris',
-                },
-            };
+                };
+            }
 
             const res = await calendar.events.update({
                 calendarId: 'primary',
