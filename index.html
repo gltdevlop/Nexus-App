@@ -14,9 +14,21 @@
 
 <body>
 
+    <!-- Loading Screen -->
+    <div id="app-loader" class="app-loader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <h2>Nexus App</h2>
+            <p>Chargement en cours...</p>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- La barre latérale pour la navigation -->
         <div class="sidebar">
+            <button id="sidebar-toggle" class="sidebar-toggle" title="Réduire/Développer">
+                <span class="toggle-icon">◀</span>
+            </button>
             <ul id="service-list" class="service-list">
                 <!-- Les services chargés dynamiquement viendront ici -->
             </ul>

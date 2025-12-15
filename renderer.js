@@ -6,6 +6,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const settingsCloseBtn = document.getElementById('settings-close-btn');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+    const sidebar = document.querySelector('.sidebar');
 
     settingsCloseBtn.addEventListener('click', () => {
         settingsModal.style.display = 'none';
@@ -1404,13 +1406,74 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
 
+    // --- SIDEBAR TOGGLE LOGIC ---
+
+    // Load sidebar state from localStorage
+    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    if (sidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+    }
+
+    // Toggle sidebar on button click
+    sidebarToggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    });
+
+    // Helper function to get icon for service
+    function getServiceIcon(serviceUrl, serviceName) {
+        // Internal services
+        if (serviceUrl === 'internal://dashboard') return '📊';
+        if (serviceUrl === 'internal://todo') return '✓';
+        if (serviceUrl === 'internal://calendar') return '📅';
+        if (serviceUrl === 'internal://files') return '📁';
+        if (serviceUrl === 'internal://gdrive') return '☁️';
+        if (serviceUrl === 'internal://ai') return '🤖';
+
+        // External services - try to detect by URL or name
+        const lowerUrl = serviceUrl.toLowerCase();
+        const lowerName = serviceName.toLowerCase();
+
+        if (lowerUrl.includes('nextcloud') || lowerName.includes('nextcloud')) return '☁️';
+        if (lowerUrl.includes('drive') || lowerName.includes('drive')) return '💾';
+        if (lowerUrl.includes('mail') || lowerName.includes('mail')) return '✉️';
+        if (lowerUrl.includes('chat') || lowerName.includes('chat')) return '💬';
+        if (lowerUrl.includes('github') || lowerName.includes('github')) return '🐙';
+        if (lowerUrl.includes('gitlab') || lowerName.includes('gitlab')) return '🦊';
+        if (lowerUrl.includes('notion') || lowerName.includes('notion')) return '📝';
+        if (lowerUrl.includes('trello') || lowerName.includes('trello')) return '📋';
+        if (lowerUrl.includes('slack') || lowerName.includes('slack')) return '💬';
+        if (lowerUrl.includes('discord') || lowerName.includes('discord')) return '🎮';
+
+        // Default icon for external services
+        return '🌐';
+    }
+
     // --- GESTION DES SERVICES (ONGLETS PRINCIPAUX) ---
 
     function renderServiceTabs(services) {
         serviceList.innerHTML = '';
         services.forEach((service, index) => {
             const listItem = document.createElement('li');
-            listItem.textContent = service.name;
+
+            // Get icon for this service
+            const icon = getServiceIcon(service.url, service.name);
+
+            // Create icon and text elements
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'service-icon';
+            iconSpan.textContent = icon;
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'service-text';
+            textSpan.textContent = service.name;
+
+            listItem.appendChild(iconSpan);
+            listItem.appendChild(textSpan);
+
+            // Add tooltip for collapsed mode
+            listItem.dataset.tooltip = service.name;
             listItem.dataset.url = service.url;
             listItem.dataset.index = index;
 
@@ -1472,6 +1535,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 contextMenu.style.top = `${e.clientY}px`;
                 contextMenu.style.left = `${e.clientX}px`;
                 contextMenu.style.display = 'block';
+            });
+
+            // Click to show service
+            listItem.addEventListener('click', () => {
+                showService(listItem);
             });
 
             serviceList.appendChild(listItem);
@@ -3015,43 +3083,58 @@ window.addEventListener('DOMContentLoaded', () => {
     // --- INITIALISATION DE L'APPLICATION ---
 
     async function initializeApp() {
-        // Met en place les écouteurs de la modale
-        addServiceBtn.addEventListener('click', () => toggleModal(true));
-        cancelBtn.addEventListener('click', () => toggleModal(false));
-        okBtn.addEventListener('click', handleSaveService);
-        modal.addEventListener('click', (e) => e.target === modal && toggleModal(false));
-        nameInput.addEventListener('keyup', (e) => e.key === 'Enter' && okBtn.click());
-        urlInput.addEventListener('keyup', (e) => e.key === 'Enter' && okBtn.click());
+        // Get loader element
+        const appLoader = document.getElementById('app-loader');
 
-        // Charge les services et met en place les onglets
-        const services = await window.api.getServices();
+        try {
+            // Met en place les écouteurs de la modale
+            addServiceBtn.addEventListener('click', () => toggleModal(true));
+            cancelBtn.addEventListener('click', () => toggleModal(false));
+            okBtn.addEventListener('click', handleSaveService);
+            modal.addEventListener('click', (e) => e.target === modal && toggleModal(false));
+            nameInput.addEventListener('keyup', (e) => e.key === 'Enter' && okBtn.click());
+            urlInput.addEventListener('keyup', (e) => e.key === 'Enter' && okBtn.click());
 
-        // Ensure dashboard is the first service
-        const dashboardIndex = services.findIndex(s => s.url === 'internal://dashboard');
-        if (dashboardIndex === -1) {
-            // Add dashboard as first service if it doesn't exist
-            services.unshift({ name: 'Dashboard', url: 'internal://dashboard' });
-            await window.api.saveServices(services);
-        } else if (dashboardIndex !== 0) {
-            // Move dashboard to first position if it exists but isn't first
-            const [dashboard] = services.splice(dashboardIndex, 1);
-            services.unshift(dashboard);
-            await window.api.saveServices(services);
-        }
+            // Charge les services et met en place les onglets
+            const services = await window.api.getServices();
 
-        renderServiceTabs(services);
-
-        // Auto-load dashboard on startup
-        const firstService = serviceList.querySelector('li');
-        if (firstService) {
-            showService(firstService);
-        }
-
-        serviceList.addEventListener('click', (e) => {
-            if (e.target.tagName === 'LI') {
-                showService(e.target);
+            // Ensure dashboard is the first service
+            const dashboardIndex = services.findIndex(s => s.url === 'internal://dashboard');
+            if (dashboardIndex === -1) {
+                // Add dashboard as first service if it doesn't exist
+                services.unshift({ name: 'Dashboard', url: 'internal://dashboard' });
+                await window.api.saveServices(services);
+            } else if (dashboardIndex !== 0) {
+                // Move dashboard to first position if it exists but isn't first
+                const [dashboard] = services.splice(dashboardIndex, 1);
+                services.unshift(dashboard);
+                await window.api.saveServices(services);
             }
-        });
+
+            renderServiceTabs(services);
+
+            // Auto-load dashboard on startup
+            const firstService = serviceList.querySelector('li');
+            if (firstService) {
+                showService(firstService);
+            }
+
+            serviceList.addEventListener('click', (e) => {
+                if (e.target.tagName === 'LI') {
+                    showService(e.target);
+                }
+            });
+
+            // Hide loader after everything is loaded
+            setTimeout(() => {
+                appLoader.classList.add('hidden');
+            }, 300); // Small delay to ensure smooth rendering
+
+        } catch (error) {
+            console.error('Error initializing app:', error);
+            // Hide loader even on error
+            appLoader.classList.add('hidden');
+        }
     }
 
     // --- CALENDAR APP ---

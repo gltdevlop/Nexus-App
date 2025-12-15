@@ -60,6 +60,68 @@ html {
     }
 }
 
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Loading Screen */
+.app-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--background-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.app-loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loader-content {
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.loader-spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 20px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 0 20px rgba(0, 122, 255, 0.3);
+}
+
+.loader-content h2 {
+    margin: 0 0 10px 0;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 28px;
+}
+
+.loader-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 /* Conteneur principal de l'application (type Flexbox) */
 .app-container {
     display: flex;
@@ -80,6 +142,48 @@ html {
     box-sizing: border-box;
     flex-shrink: 0;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    transition: width 0.3s ease, min-width 0.3s ease;
+    position: relative;
+}
+
+/* Sidebar collapsed state */
+.sidebar.collapsed {
+    width: 60px;
+    min-width: 60px;
+}
+
+/* Toggle button */
+.sidebar-toggle {
+    width: 100%;
+    height: 36px;
+    background: var(--surface-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.sidebar-toggle:hover {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+.sidebar.collapsed .sidebar-toggle .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
 }
 
 .service-list {
@@ -101,6 +205,69 @@ html {
     color: var(--text-secondary);
     transition: all 0.3s ease;
     animation: slideIn 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+/* Icon in service items */
+.service-list li .service-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+/* Text in service items */
+.service-list li .service-text {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+}
+
+/* Hide text in collapsed mode */
+.sidebar.collapsed .service-list li .service-text {
+    opacity: 0;
+    width: 0;
+}
+
+/* Center icons in collapsed mode */
+.sidebar.collapsed .service-list li {
+    justify-content: center;
+    align-items: center;
+    padding: 12px 5px;
+}
+
+.sidebar.collapsed .service-list li .service-icon {
+    margin: 0;
+}
+
+/* Tooltip for collapsed mode */
+.service-list li::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    padding: 8px 12px;
+    background: var(--surface-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar.collapsed .service-list li:hover::after {
+    opacity: 1;
 }
 
 .service-list li:hover {
@@ -151,6 +318,11 @@ html {
 
 .settings-btn {
     font-size: 20px;
+}
+
+/* Stack buttons vertically in collapsed mode */
+.sidebar.collapsed .sidebar-actions {
+    flex-direction: column;
 }
 
 .add-service-btn:hover,
