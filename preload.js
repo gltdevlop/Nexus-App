@@ -95,7 +95,7 @@ contextBridge.exposeInMainWorld('api', {
     fetchEvents: (params) => ipcRenderer.invoke('gcal-fetch-events', params),
     createEvent: (eventData) => ipcRenderer.invoke('gcal-create-event', eventData),
     updateEvent: (params) => ipcRenderer.invoke('gcal-update-event', params),
-    deleteEvent: (eventId) => ipcRenderer.invoke('gcal-delete-event', eventId)
+    deleteEvent: (params) => ipcRenderer.invoke('gcal-delete-event', params)
   },
   // --- AI ---
   ai: {

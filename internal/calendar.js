@@ -280,7 +280,7 @@ module.exports = function (ipcMain, userDataPath) {
     });
 
     ipcMain.handle('gcal-update-event', async (event, params) => {
-        const { eventId, eventData } = params;
+        const { eventId, eventData, calendarId } = params;
         const client = await getGCalClient();
         if (!client) return { success: false, error: "Not configured" };
 
@@ -316,7 +316,7 @@ module.exports = function (ipcMain, userDataPath) {
             }
 
             const res = await calendar.events.update({
-                calendarId: 'primary',
+                calendarId: calendarId || 'primary',
                 eventId: eventId,
                 resource: googleEvent,
             });
@@ -328,14 +328,15 @@ module.exports = function (ipcMain, userDataPath) {
         }
     });
 
-    ipcMain.handle('gcal-delete-event', async (event, eventId) => {
+    ipcMain.handle('gcal-delete-event', async (event, params) => {
+        const { eventId, calendarId } = params;
         const client = await getGCalClient();
         if (!client) return { success: false, error: "Not configured" };
 
         try {
             const calendar = google.calendar({ version: 'v3', auth: client });
             await calendar.events.delete({
-                calendarId: 'primary',
+                calendarId: calendarId || 'primary',
                 eventId: eventId,
             });
 

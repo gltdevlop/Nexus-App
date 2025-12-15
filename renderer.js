@@ -2106,11 +2106,28 @@ window.addEventListener('DOMContentLoaded', () => {
                 const localCalendarData = await window.api.calendar.getEvents();
                 const localEvents = localCalendarData.events || [];
 
-                // Filter today's local events
+                // Filter today's local events (including multi-day events)
                 const todayLocalEvents = localEvents.filter(event => {
                     if (!event.start) return false;
-                    const eventDate = new Date(event.start).toISOString().split('T')[0];
-                    return eventDate === today;
+
+                    const eventStartDate = event.start.split('T')[0];
+                    const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+
+                    // Check if event is all-day
+                    const isAllDay = !event.start.includes('T') || event.start.endsWith('T00:00:00');
+
+                    if (isAllDay) {
+                        // For all-day events, check if today is within the range
+                        // Note: end date is exclusive (day after last day)
+                        const start = new Date(eventStartDate + 'T00:00:00');
+                        const end = new Date(eventEndDate + 'T00:00:00');
+                        const todayDate = new Date(today + 'T00:00:00');
+
+                        return todayDate >= start && todayDate < end;
+                    } else {
+                        // For timed events, just check the start date
+                        return eventStartDate === today;
+                    }
                 }).map(event => ({
                     ...event,
                     source: 'local'
@@ -2125,23 +2142,50 @@ window.addEventListener('DOMContentLoaded', () => {
             try {
                 const gcalConfig = await window.api.gcal.getConfig();
                 if (gcalConfig && gcalConfig.connected && gcalConfig.selectedCalendars && gcalConfig.selectedCalendars.length > 0) {
-                    const startOfDay = new Date(today);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(today);
-                    endOfDay.setHours(23, 59, 59, 999);
+                    // Fetch events from a week ago to tomorrow to catch multi-day events
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(startOfWeek.getDate() - 7);
+                    startOfWeek.setHours(0, 0, 0, 0);
+
+                    const endOfTomorrow = new Date(today);
+                    endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
+                    endOfTomorrow.setHours(23, 59, 59, 999);
 
                     const gcalResult = await window.api.gcal.fetchEvents({
-                        timeMin: startOfDay.toISOString(),
-                        timeMax: endOfDay.toISOString(),
+                        timeMin: startOfWeek.toISOString(),
+                        timeMax: endOfTomorrow.toISOString(),
                         calendarIds: gcalConfig.selectedCalendars
                     });
 
                     if (gcalResult.success && gcalResult.events) {
-                        const googleEvents = gcalResult.events.map(event => ({
+                        // Filter to only include events that span today
+                        const todayGoogleEvents = gcalResult.events.filter(event => {
+                            if (!event.start) return false;
+
+                            const eventStartDate = event.start.split('T')[0];
+                            const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+
+                            // Check if event is all-day
+                            const isAllDay = !event.start.includes('T');
+
+                            if (isAllDay) {
+                                // For all-day events, check if today is within the range
+                                // Note: end date is exclusive (day after last day)
+                                const start = new Date(eventStartDate + 'T00:00:00');
+                                const end = new Date(eventEndDate + 'T00:00:00');
+                                const todayDate = new Date(today + 'T00:00:00');
+
+                                return todayDate >= start && todayDate < end;
+                            } else {
+                                // For timed events, check if it's today
+                                return eventStartDate === today;
+                            }
+                        }).map(event => ({
                             ...event,
                             source: 'google'
                         }));
-                        allEvents.push(...googleEvents);
+
+                        allEvents.push(...todayGoogleEvents);
                     }
                 }
             } catch (error) {
@@ -3637,7 +3681,7 @@ window.addEventListener('DOMContentLoaded', () => {
             dayDetail.classList.add('visible');
         }
 
-        function openEventModal(event = null) {
+        async function openEventModal(event = null) {
             editingEvent = event;
 
             if (event) {
@@ -3651,7 +3695,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Set dates
                 eventDateInput.value = event.start.split('T')[0];
                 if (event.end) {
-                    const endDate = event.end.split('T')[0];
+                    let endDate = event.end.split('T')[0];
+                    // For all-day events, Google Calendar uses exclusive end date (day after last day)
+                    // So we need to subtract 1 day to show the actual last day
+                    if (isAllDay) {
+                        const endDateObj = new Date(endDate);
+                        endDateObj.setDate(endDateObj.getDate() - 1);
+                        endDate = formatDate(endDateObj);
+                    }
                     eventEndDateInput.value = endDate;
                 } else {
                     eventEndDateInput.value = event.start.split('T')[0];
@@ -3722,8 +3773,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     eventRecurrenceEndType.value = 'never';
                 }
 
-                // Hide calendar selector when editing
-                eventCalendarSelector.style.display = 'none';
+                // Show calendar selector for Google events and select the correct calendar
+                if (event.source === 'google') {
+                    await populateCalendarSelector();
+                    eventCalendarSelector.style.display = 'block';
+                    // Select the calendar that this event belongs to
+                    if (event.calendarId) {
+                        eventCalendarIdSelect.value = event.calendarId;
+                    }
+                    // Disable calendar selector when editing to prevent changing calendar
+                    eventCalendarIdSelect.disabled = true;
+                } else {
+                    eventCalendarSelector.style.display = 'none';
+                }
             } else {
                 modalTitle.textContent = 'Nouvel événement';
                 eventTitleInput.value = '';
@@ -3750,7 +3812,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventDeleteBtn.style.display = 'none';
 
                 // Populate calendar selector and hide by default
-                populateCalendarSelector();
+                await populateCalendarSelector();
+                // Select primary calendar by default for new events
+                const primaryCalendar = availableGoogleCalendars.find(cal => cal.primary);
+                if (primaryCalendar) {
+                    eventCalendarIdSelect.value = primaryCalendar.id;
+                }
+                eventCalendarIdSelect.disabled = false; // Enable calendar selector for new events
                 eventCalendarSelector.style.display = 'none';
             }
 
@@ -3761,7 +3829,12 @@ window.addEventListener('DOMContentLoaded', () => {
             eventModal.classList.add('visible');
         }
 
-        function populateCalendarSelector() {
+        async function populateCalendarSelector() {
+            // Load calendars if not already loaded
+            if (availableGoogleCalendars.length === 0) {
+                await loadAvailableCalendars();
+            }
+
             eventCalendarIdSelect.innerHTML = '';
 
             if (availableGoogleCalendars.length === 0) {
@@ -3777,7 +3850,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     option.textContent = cal.name;
                     if (cal.primary) {
                         option.textContent += ' (Principal)';
-                        option.selected = true; // Select primary by default
                     }
                     eventCalendarIdSelect.appendChild(option);
                 });
@@ -3859,11 +3931,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventData.recurrence = [rrule];
             }
 
+            // Disable save button and show loading state
+            const originalText = eventSaveBtn.textContent;
+            eventSaveBtn.disabled = true;
+            eventSaveBtn.textContent = 'Enregistrement...';
+            eventSaveBtn.style.opacity = '0.6';
+            eventSaveBtn.style.cursor = 'not-allowed';
+
             try {
                 if (editingEvent && editingEvent.source === 'google') {
                     // Update Google event
                     await window.api.gcal.updateEvent({
                         eventId: editingEvent.id,
+                        calendarId: editingEvent.calendarId,
                         eventData
                     });
                 } else if (editingEvent && editingEvent.source === 'local') {
@@ -3888,13 +3968,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
 
                 eventModal.classList.remove('visible');
-                eventModal.classList.remove('visible');
                 await loadData();
                 renderCalendar();
                 if (selectedDate) showDayDetail(selectedDate);
             } catch (e) {
                 alert('Erreur lors de la sauvegarde: ' + e.message);
                 console.error(e);
+            } finally {
+                // Re-enable button and restore original state
+                eventSaveBtn.disabled = false;
+                eventSaveBtn.textContent = originalText;
+                eventSaveBtn.style.opacity = '';
+                eventSaveBtn.style.cursor = '';
             }
         }
 
@@ -3905,7 +3990,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
             try {
                 if (editingEvent.source === 'google') {
-                    await window.api.gcal.deleteEvent(editingEvent.id);
+                    await window.api.gcal.deleteEvent({
+                        eventId: editingEvent.id,
+                        calendarId: editingEvent.calendarId
+                    });
                 } else if (editingEvent.source === 'local') {
                     localEvents = localEvents.filter(e => e.id !== editingEvent.id);
                     await window.api.calendar.saveEvents({ events: localEvents });
@@ -4012,8 +4100,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        eventDestinationSelect.addEventListener('change', () => {
+        eventDestinationSelect.addEventListener('change', async () => {
             if (eventDestinationSelect.value === 'google') {
+                await populateCalendarSelector(); // Reload calendar list when switching to Google
                 eventCalendarSelector.style.display = 'block';
             } else {
                 eventCalendarSelector.style.display = 'none';
