@@ -11,7 +11,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.calendar-header,
+.calendar-weekday-header,
 .calendar-day {
     background-color: var(--surface-dark);
     padding: 10px;
@@ -23,7 +23,7 @@
     transition: all 0.3s ease;
 }
 
-.calendar-header {
+.calendar-weekday-header {
     min-height: auto;
     font-weight: 600;
     background: linear-gradient(180deg, var(--surface-dark) 0%, #252527 100%);

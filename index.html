@@ -316,6 +316,13 @@
         </div>
     </div>
 
+    <!-- Load modular components first -->
+    <script src="./renderer/shared/utils.js"></script>
+    <script src="./renderer/apps/dashboard-app.js"></script>
+    <script src="./renderer/shared/services.js"></script>
+    <script src="./renderer/files/files-selection.js"></script>
+    <script src="./renderer/files/files-navigation.js"></script>
+
     <!-- On lie notre script de rendu qui gère l'interactivité de la page -->
     <script src="./renderer.js"></script>
 </body>

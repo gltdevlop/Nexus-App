@@ -2472,7 +2472,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const daysOfWeek = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
                 daysOfWeek.forEach(day => {
                     const header = document.createElement('div');
-                    header.classList.add('calendar-header');
+                    header.classList.add('calendar-weekday-header');
                     header.textContent = day;
                     calendarGrid.appendChild(header);
                 });
@@ -3195,53 +3195,85 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         container.innerHTML = `
-            <div class="calendar-app">
-                <div class="calendar-main">
-                    <div class="calendar-header">
-                        <h1 class="calendar-title">📅 Calendrier</h1>
-                        <div class="calendar-actions">
-                            <button class="calendar-btn" id="cal-sync-btn">🔄 Synchroniser</button>
-                            <button class="calendar-btn primary" id="cal-new-event-btn">+ Nouvel événement</button>
-                            <button class="calendar-btn" id="cal-settings-btn">⚙️ Configuration</button>
+        <div class="calendar-app">
+            <!-- Loading Screen -->
+            <div class="calendar-loading-screen" id="calendar-loading-screen" style="display: flex;">
+                <div class="spinner"></div>
+                <div>Chargement du calendrier...</div>
+            </div>
+
+            <!-- Left Sidebar -->
+            <div class="calendar-sidebar" style="display: none;" id="calendar-sidebar">
+                <button class="calendar-create-btn" id="cal-new-event-btn">
+                    + Créer
+                </button>
+
+                <!-- Mini Month Calendar -->
+                <div class="mini-calendar">
+                    <div class="mini-calendar-header">
+                        <span class="mini-calendar-month" id="mini-cal-month"></span>
+                        <div class="mini-calendar-nav">
+                            <button id="mini-cal-prev">‹</button>
+                            <button id="mini-cal-next">›</button>
                         </div>
                     </div>
-
-                    <div class="month-navigation">
-                        <button class="month-nav-btn" id="cal-prev-month">‹</button>
-                        <div class="current-month" id="cal-current-month"></div>
-                        <button class="month-nav-btn" id="cal-next-month">›</button>
+                    <div class="mini-calendar-grid" id="mini-cal-grid">
+                        <!-- Mini calendar will be rendered here -->
                     </div>
+                </div>
 
+                <!-- Calendar List -->
+                <div class="calendar-list">
+                    <div class="calendar-list-title">Mes agendas</div>
+                    <div class="calendar-list-items" id="calendar-list-items">
+                        <!-- Calendar items will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Calendar Area -->
+            <div class="calendar-main" style="display: none;" id="calendar-main">
+                <!-- Header / Navbar -->
+                <div class="calendar-header">
+                    <button class="calendar-today-btn" id="cal-today-btn">Aujourd'hui</button>
+                    <div class="calendar-nav-btns">
+                        <button class="calendar-nav-btn" id="cal-prev-month">‹</button>
+                        <button class="calendar-nav-btn" id="cal-next-month">›</button>
+                    </div>
+                    <div class="calendar-current-month" id="cal-current-month"></div>
+                    <button class="calendar-action-btn" id="cal-sync-btn">🔄 Sync</button>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-view-container">
                     <div class="calendar-month-grid" id="cal-month-grid">
                         <div class="calendar-loading">Chargement...</div>
                     </div>
                 </div>
+            </div>
 
-                <div class="day-detail-sidebar" id="cal-day-detail">
-                    <button class="day-detail-close" id="cal-close-detail">✕</button>
-                    <div class="day-detail-header">
-                        <div class="day-detail-date" id="cal-detail-date"></div>
-                        <div class="day-detail-weekday" id="cal-detail-weekday"></div>
-                    </div>
-                    <div class="day-events-list" id="cal-detail-events"></div>
+            <!-- Day Detail Sidebar -->
+            <div class="day-detail-sidebar" id="cal-day-detail">
+                <button class="day-detail-close" id="cal-detail-close">×</button>
+                <div class="day-detail-header">
+                    <div class="day-detail-date" id="cal-detail-date"></div>
+                    <div class="day-detail-weekday" id="cal-detail-weekday"></div>
+                </div>
+                <div class="day-events-list" id="cal-detail-events">
+                    <!-- Events will be rendered here -->
                 </div>
             </div>
+        </div>
 
             <!-- Event Modal -->
             <div class="event-modal" id="cal-event-modal">
                 <div class="event-modal-content">
                     <h2 class="event-modal-header" id="cal-modal-title">Nouvel événement</h2>
-                    <div class="form-group">
-                        <label>Titre</label>
-                        <input type="text" id="cal-event-title" placeholder="Titre de l'événement">
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="cal-event-all-day">
-                            <span>Journée entière</span>
-                        </label>
-                    </div>
-                    <div class="form-row">
+                    <div class="event-modal-form">
+                        <div class="form-group full-width">
+                            <label>Titre</label>
+                            <input type="text" id="cal-event-title" placeholder="Titre de l'événement">
+                        </div>
                         <div class="form-group">
                             <label>Date de début</label>
                             <input type="date" id="cal-event-date">
@@ -3250,8 +3282,6 @@ window.addEventListener('DOMContentLoaded', () => {
                             <label>Heure de début</label>
                             <input type="time" id="cal-event-start-time">
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label>Date de fin</label>
                             <input type="date" id="cal-event-end-date">
@@ -3260,8 +3290,12 @@ window.addEventListener('DOMContentLoaded', () => {
                             <label>Heure de fin</label>
                             <input type="time" id="cal-event-end-time">
                         </div>
-                    </div>
-                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="cal-event-all-day">
+                                <span>Journée entière</span>
+                            </label>
+                        </div>
                         <div class="form-group">
                             <label>Destination</label>
                             <select id="cal-event-destination">
@@ -3269,25 +3303,23 @@ window.addEventListener('DOMContentLoaded', () => {
                                 <option value="google">Google Calendar</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-group" id="cal-event-calendar-selector" style="display:none;">
-                        <label>Calendrier Google</label>
-                        <select id="cal-event-calendar-id">
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Récurrence</label>
-                        <select id="cal-event-recurrence">
-                            <option value="">Aucune</option>
-                            <option value="DAILY">Quotidienne</option>
-                            <option value="WEEKLY">Hebdomadaire</option>
-                            <option value="MONTHLY">Mensuelle</option>
-                            <option value="YEARLY">Annuelle</option>
-                        </select>
-                    </div>
-                    <div class="form-row" id="cal-event-recurrence-end" style="display:none;">
+                        <div class="form-group" id="cal-event-calendar-selector" style="display:none;">
+                            <label>Calendrier Google</label>
+                            <select id="cal-event-calendar-id">
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                        </div>
                         <div class="form-group">
+                            <label>Récurrence</label>
+                            <select id="cal-event-recurrence">
+                                <option value="">Aucune</option>
+                                <option value="DAILY">Quotidienne</option>
+                                <option value="WEEKLY">Hebdomadaire</option>
+                                <option value="MONTHLY">Mensuelle</option>
+                                <option value="YEARLY">Annuelle</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="cal-event-recurrence-end-type-group" style="display:none;">
                             <label>Fin de récurrence</label>
                             <select id="cal-event-recurrence-end-type">
                                 <option value="never">Jamais</option>
@@ -3303,15 +3335,15 @@ window.addEventListener('DOMContentLoaded', () => {
                             <label>Nombre d'occurrences</label>
                             <input type="number" id="cal-event-recurrence-end-count" value="10" min="1">
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea id="cal-event-description" placeholder="Description (optionnel)"></textarea>
-                    </div>
-                    <div class="modal-actions">
-                        <button id="cal-event-delete-btn" class="danger-btn" style="display:none;">Supprimer</button>
-                        <button id="cal-event-cancel-btn">Annuler</button>
-                        <button id="cal-event-save-btn" class="primary-btn">Enregistrer</button>
+                        <div class="form-group full-width">
+                            <label>Description</label>
+                            <textarea id="cal-event-description" placeholder="Description (optionnel)"></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button id="cal-event-delete-btn" class="danger-btn" style="display:none;">Supprimer</button>
+                            <button id="cal-event-cancel-btn">Annuler</button>
+                            <button id="cal-event-save-btn" class="primary-btn">Enregistrer</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3321,22 +3353,43 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // State
         let currentDate = new Date();
+        let miniCalDate = new Date();
         let selectedDate = null;
         let localEvents = [];
         let googleEvents = [];
         let todoTasks = [];
         let editingEvent = null;
+        let visibleCalendars = {
+            local: true,
+            todo: true,
+            google: {}  // Will store {calendarId: true/false}
+        };
 
         // Elements
+        const loadingScreen = container.querySelector('#calendar-loading-screen');
+        const calendarSidebar = container.querySelector('#calendar-sidebar');
+        const calendarMain = container.querySelector('#calendar-main');
         const monthGrid = container.querySelector('#cal-month-grid');
         const currentMonthLabel = container.querySelector('#cal-current-month');
         const prevMonthBtn = container.querySelector('#cal-prev-month');
         const nextMonthBtn = container.querySelector('#cal-next-month');
+        const todayBtn = container.querySelector('#cal-today-btn');
         const newEventBtn = container.querySelector('#cal-new-event-btn');
         const syncBtn = container.querySelector('#cal-sync-btn');
-        const settingsBtn = container.querySelector('#cal-settings-btn');
+
+        // Mini calendar elements
+        const miniCalMonth = container.querySelector('#mini-cal-month');
+        const miniCalGrid = container.querySelector('#mini-cal-grid');
+        const miniCalPrev = container.querySelector('#mini-cal-prev');
+        const miniCalNext = container.querySelector('#mini-cal-next');
+
+        // Calendar list elements
+        const calendarListItems = container.querySelector('#calendar-list-items');
+
+        // Day detail sidebar elements
         const dayDetail = container.querySelector('#cal-day-detail');
-        const closeDetailBtn = container.querySelector('#cal-close-detail');
+        const dayDetailClose = container.querySelector('#cal-detail-close');
+
         const eventModal = container.querySelector('#cal-event-modal');
         const modalTitle = container.querySelector('#cal-modal-title');
         const eventTitleInput = container.querySelector('#cal-event-title');
@@ -3351,7 +3404,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const eventCalendarSelector = container.querySelector('#cal-event-calendar-selector');
         const eventCalendarIdSelect = container.querySelector('#cal-event-calendar-id');
         const eventRecurrenceSelect = container.querySelector('#cal-event-recurrence');
-        const eventRecurrenceEnd = container.querySelector('#cal-event-recurrence-end');
+        const eventRecurrenceEndTypeGroup = container.querySelector('#cal-event-recurrence-end-type-group');
         const eventRecurrenceEndType = container.querySelector('#cal-event-recurrence-end-type');
         const eventRecurrenceEndDate = container.querySelector('#cal-event-recurrence-end-date');
         const eventRecurrenceEndCount = container.querySelector('#cal-event-recurrence-end-count');
@@ -3387,6 +3440,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 if (gcalConfig.connected) {
                     console.log("🔗 Google Calendar is connected, syncing...");
+
+                    // Initialize visibleCalendars.google from config
+                    if (gcalConfig.selectedCalendars && gcalConfig.selectedCalendars.length > 0) {
+                        gcalConfig.selectedCalendars.forEach(calId => {
+                            visibleCalendars.google[calId] = true;
+                        });
+                    }
+
                     await syncGoogleCalendar();
 
                     // Load available calendars for the selector
@@ -3415,6 +3476,33 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.error("Error loading available calendars:", e);
             }
         }
+
+        async function saveGoogleCalendarSelection() {
+            try {
+                // Get current config
+                const gcalConfig = await window.api.gcal.getConfig();
+
+                // Build list of selected calendar IDs from visibleCalendars.google
+                const selectedCalendars = [];
+                for (const [calId, isVisible] of Object.entries(visibleCalendars.google)) {
+                    if (isVisible) {
+                        selectedCalendars.push(calId);
+                    }
+                }
+
+                // Save updated config
+                await window.api.gcal.saveConfig({
+                    clientId: gcalConfig.clientId,
+                    clientSecret: gcalConfig.clientSecret,
+                    selectedCalendars: selectedCalendars
+                });
+
+                console.log("💾 Saved calendar selection:", selectedCalendars);
+            } catch (e) {
+                console.error("Error saving calendar selection:", e);
+            }
+        }
+
 
         async function syncGoogleCalendar() {
             try {
@@ -3537,7 +3625,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 dayEvents.slice(0, maxVisible).forEach(event => {
                     const pill = document.createElement('div');
                     pill.className = `event-pill ${event.source}`;
-                    pill.textContent = event.title;
+
+                    // Create time and title elements
+                    if (event.time) {
+                        const timeSpan = document.createElement('span');
+                        timeSpan.className = 'event-pill-time';
+                        timeSpan.textContent = event.time;
+                        pill.appendChild(timeSpan);
+                    }
+
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'event-pill-title';
+                    titleSpan.textContent = event.title;
+                    pill.appendChild(titleSpan);
 
                     // Apply Google Calendar color if available
                     if (event.source === 'google' && event.colorId) {
@@ -3572,23 +3672,168 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Render mini calendar
+        function renderMiniCalendar() {
+            const year = miniCalDate.getFullYear();
+            const month = miniCalDate.getMonth();
+
+            miniCalMonth.textContent = miniCalDate.toLocaleDateString('fr-FR', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            miniCalGrid.innerHTML = '';
+
+            // Add weekday headers
+            const weekdays = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+            weekdays.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'mini-calendar-weekday';
+                header.textContent = day;
+                miniCalGrid.appendChild(header);
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDay = firstDay.getDay();
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < startDay; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'mini-calendar-day other-month';
+                miniCalGrid.appendChild(cell);
+            }
+
+            // Add days of month
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cell = document.createElement('div');
+                cell.className = 'mini-calendar-day';
+                cell.textContent = day;
+
+                const date = new Date(year, month, day);
+
+                // Check if today
+                if (date.toDateString() === today.toDateString()) {
+                    cell.classList.add('today');
+                }
+
+                // Check if selected (current main calendar date)
+                if (date.getMonth() === currentDate.getMonth() &&
+                    date.getFullYear() === currentDate.getFullYear() &&
+                    date.getDate() === currentDate.getDate()) {
+                    cell.classList.add('selected');
+                }
+
+                cell.addEventListener('click', () => {
+                    const clickedDate = new Date(year, month, day);
+                    currentDate = clickedDate;
+                    renderCalendar();
+                    renderMiniCalendar();
+                    showDayDetail(clickedDate);
+                });
+
+                miniCalGrid.appendChild(cell);
+            }
+        }
+
+        // Render calendar list
+        function renderCalendarList() {
+            calendarListItems.innerHTML = '';
+
+            // Local calendar
+            const localItem = createCalendarListItem('local', 'Calendrier local', '#007AFF', visibleCalendars.local);
+            calendarListItems.appendChild(localItem);
+
+            // Todo tasks
+            const todoItem = createCalendarListItem('todo', 'Tâches', '#FF9500', visibleCalendars.todo);
+            calendarListItems.appendChild(todoItem);
+
+            // Google calendars
+            if (availableGoogleCalendars && availableGoogleCalendars.length > 0) {
+                availableGoogleCalendars.forEach(cal => {
+                    const isVisible = visibleCalendars.google[cal.id] !== false; // Default to true
+                    const item = createCalendarListItem(`google-${cal.id}`, cal.name, cal.backgroundColor || '#34A853', isVisible, cal.id);
+                    calendarListItems.appendChild(item);
+                });
+            }
+        }
+
+        function createCalendarListItem(id, name, color, checked, googleCalId = null) {
+            const item = document.createElement('div');
+            item.className = 'calendar-list-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = checked;
+            checkbox.id = `cal-list-${id}`;
+
+            checkbox.addEventListener('change', async (e) => {
+                if (id === 'local') {
+                    visibleCalendars.local = e.target.checked;
+                } else if (id === 'todo') {
+                    visibleCalendars.todo = e.target.checked;
+                } else if (googleCalId) {
+                    // Disable all checkboxes to prevent spam
+                    const allCheckboxes = calendarListItems.querySelectorAll('input[type="checkbox"]');
+                    allCheckboxes.forEach(cb => cb.disabled = true);
+
+                    // Show loading state
+                    container.dataset.syncing = 'true';
+                    renderCalendar();
+
+                    visibleCalendars.google[googleCalId] = e.target.checked;
+
+                    // Save to config
+                    await saveGoogleCalendarSelection();
+
+                    // Resync Google Calendar to fetch events from newly selected calendars
+                    await syncGoogleCalendar();
+
+                    // Hide loading state
+                    container.dataset.syncing = 'false';
+
+                    // Re-enable all checkboxes
+                    allCheckboxes.forEach(cb => cb.disabled = false);
+                }
+                renderCalendar();
+            });
+
+            const colorDot = document.createElement('div');
+            colorDot.className = 'calendar-list-item-color';
+            colorDot.style.backgroundColor = color;
+
+            const nameSpan = document.createElement('div');
+            nameSpan.className = 'calendar-list-item-name';
+            nameSpan.textContent = name;
+
+            item.appendChild(checkbox);
+            item.appendChild(colorDot);
+            item.appendChild(nameSpan);
+
+            return item;
+        }
+
         function getAllEventsForDate(dateString) {
             const events = [];
             const targetDate = new Date(dateString + 'T00:00:00');
 
-            // Todo tasks
-            todoTasks.forEach(task => {
-                if (task.dueDate === dateString) {
-                    events.push({
-                        id: task.id,
-                        title: task.text,
-                        source: 'todo',
-                        time: '',
-                        description: '',
-                        data: task
-                    });
-                }
-            });
+            // Todo tasks (only if visible)
+            if (visibleCalendars.todo) {
+                todoTasks.forEach(task => {
+                    if (task.dueDate === dateString) {
+                        events.push({
+                            id: task.id,
+                            title: task.text,
+                            source: 'todo',
+                            time: '',
+                            description: '',
+                            data: task
+                        });
+                    }
+                });
+            }
 
             // Helper function to check if event spans the target date
             const eventSpansDate = (eventStart, eventEnd, targetDateStr) => {
@@ -3601,33 +3846,38 @@ window.addEventListener('DOMContentLoaded', () => {
                 return target >= start && target < end;
             };
 
-            // Local events (including multi-day)
-            localEvents.forEach(event => {
-                const eventStartDate = event.start.split('T')[0];
-                const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+            // Local events (only if visible)
+            if (visibleCalendars.local) {
+                localEvents.forEach(event => {
+                    const eventStartDate = event.start.split('T')[0];
+                    const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
 
-                // Check if this event spans the target date
-                if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
-                    events.push({
-                        ...event,
-                        source: 'local',
-                        time: formatTime(event.start)
-                    });
-                }
-            });
+                    // Check if this event spans the target date
+                    if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
+                        events.push({
+                            ...event,
+                            source: 'local',
+                            time: formatTime(event.start)
+                        });
+                    }
+                });
+            }
 
-            // Google events (including multi-day)
+            // Google events (only if their calendar is visible)
             googleEvents.forEach(event => {
-                const eventStartDate = event.start.split('T')[0];
-                const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
+                // Check if this specific Google calendar is visible
+                if (visibleCalendars.google[event.calendarId] !== false) {
+                    const eventStartDate = event.start.split('T')[0];
+                    const eventEndDate = event.end ? event.end.split('T')[0] : eventStartDate;
 
-                // Check if this event spans the target date
-                if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
-                    events.push({
-                        ...event,
-                        source: 'google',
-                        time: formatTime(event.start)
-                    });
+                    // Check if this event spans the target date
+                    if (eventSpansDate(eventStartDate, eventEndDate, dateString) || eventStartDate === dateString) {
+                        events.push({
+                            ...event,
+                            source: 'google',
+                            time: formatTime(event.start)
+                        });
+                    }
                 }
             });
 
@@ -3743,7 +3993,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     const freqMatch = rrule.match(/FREQ=(\w+)/);
                     if (freqMatch) {
                         eventRecurrenceSelect.value = freqMatch[1];
-                        eventRecurrenceEnd.style.display = 'flex';
+                        eventRecurrenceEndTypeGroup.style.display = 'block';
                     }
 
                     // Extract UNTIL date
@@ -3776,7 +4026,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // No recurrence
                     eventRecurrenceSelect.value = '';
-                    eventRecurrenceEnd.style.display = 'none';
+                    eventRecurrenceEndTypeGroup.style.display = 'none';
                     eventRecurrenceEndType.value = 'never';
                 }
 
@@ -3815,7 +4065,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 eventDestinationSelect.disabled = false;
                 eventDescriptionInput.value = '';
                 eventRecurrenceSelect.value = '';
-                eventRecurrenceEnd.style.display = 'none';
+                eventRecurrenceEndTypeGroup.style.display = 'none';
                 eventDeleteBtn.style.display = 'none';
 
                 // Populate calendar selector and hide by default
@@ -4050,42 +4300,61 @@ window.addEventListener('DOMContentLoaded', () => {
         // Event listeners
         prevMonthBtn.addEventListener('click', async () => {
             currentDate.setMonth(currentDate.getMonth() - 1);
+            miniCalDate = new Date(currentDate);
             await loadData();
             renderCalendar();
+            renderMiniCalendar();
         });
 
         nextMonthBtn.addEventListener('click', async () => {
             currentDate.setMonth(currentDate.getMonth() + 1);
+            miniCalDate = new Date(currentDate);
             await loadData();
             renderCalendar();
+            renderMiniCalendar();
+        });
+
+        todayBtn.addEventListener('click', async () => {
+            currentDate = new Date();
+            miniCalDate = new Date();
+            await loadData();
+            renderCalendar();
+            renderMiniCalendar();
+        });
+
+        // Mini calendar navigation
+        miniCalPrev.addEventListener('click', () => {
+            miniCalDate.setMonth(miniCalDate.getMonth() - 1);
+            renderMiniCalendar();
+        });
+
+        miniCalNext.addEventListener('click', () => {
+            miniCalDate.setMonth(miniCalDate.getMonth() + 1);
+            renderMiniCalendar();
         });
 
         newEventBtn.addEventListener('click', () => openEventModal());
 
         syncBtn.addEventListener('click', async () => {
-            syncBtn.textContent = '🔄 Synchronisation...';
+            syncBtn.textContent = '🔄 Sync...';
             syncBtn.disabled = true;
             try {
                 await loadData();
                 renderCalendar();
-                if (selectedDate) showDayDetail(selectedDate);
+                renderMiniCalendar();
+                renderCalendarList();
             } catch (e) {
                 console.error("Error during sync:", e);
                 alert("Erreur lors de la synchronisation: " + e.message);
             }
-            syncBtn.textContent = '🔄 Synchroniser';
+            syncBtn.textContent = '🔄 Sync';
             syncBtn.disabled = false;
         });
 
-        settingsBtn.addEventListener('click', () => {
-            // Open settings modal to Google Calendar section
-            const settingsModal = document.getElementById('settings-modal');
-            const settingsBtn = document.getElementById('settings-btn');
-            if (settingsBtn) settingsBtn.click();
-        });
-
-        closeDetailBtn.addEventListener('click', () => {
+        // Close day detail sidebar
+        dayDetailClose.addEventListener('click', () => {
             dayDetail.classList.remove('visible');
+            selectedDate = null;
         });
 
         eventCancelBtn.addEventListener('click', () => {
@@ -4118,9 +4387,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         eventRecurrenceSelect.addEventListener('change', () => {
             if (eventRecurrenceSelect.value) {
-                eventRecurrenceEnd.style.display = 'flex';
+                eventRecurrenceEndTypeGroup.style.display = 'block';
             } else {
-                eventRecurrenceEnd.style.display = 'none';
+                eventRecurrenceEndTypeGroup.style.display = 'none';
             }
         });
 
@@ -4148,6 +4417,13 @@ window.addEventListener('DOMContentLoaded', () => {
         // Initialize
         await loadData();
         renderCalendar();
+        renderMiniCalendar();
+        renderCalendarList();
+
+        // Hide loading screen and show calendar
+        loadingScreen.style.display = 'none';
+        calendarSidebar.style.display = 'flex';
+        calendarMain.style.display = 'flex';
     }
 
     initializeApp();
