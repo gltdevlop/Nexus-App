@@ -60,6 +60,29 @@ body {
     padding: 50px 40px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     text-align: center;
+    max-height: 80vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for step content */
+.step-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.step-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.step-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+.step-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 h1 {

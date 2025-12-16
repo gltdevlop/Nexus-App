@@ -80,6 +80,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // --- KEYBOARD SHORTCUTS ---
     document.addEventListener('keydown', (e) => {
+        // Don't intercept keyboard shortcuts when typing in input or textarea fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Don't intercept keyboard shortcuts when a modal is open
+        const isModalOpen = document.querySelector('.modal-overlay[style*="display: flex"], .modal-overlay[style*="display:flex"]');
+        if (isModalOpen) {
+            return;
+        }
+
         // Only handle keyboard shortcuts when files app is visible
         const filesAppVisible = filesAppContainer.style.display === 'flex';
         if (!filesAppVisible) return;
@@ -282,10 +293,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     loadFiles(currentPath, document.getElementById('files-app-container'));
                 }
             }
-        }
-        // Click outside to close
-        if (e.target.id === 'files-rename-modal') {
-            e.target.style.display = 'none';
         }
     });
 

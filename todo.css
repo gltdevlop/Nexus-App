@@ -509,7 +509,6 @@ textarea::placeholder {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 30px;
-    max-width: 1400px;
 }
 
 #dashboard-events {
