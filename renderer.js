@@ -67,8 +67,9 @@ window.addEventListener('DOMContentLoaded', () => {
     let searchQuery = '';
     let sortBy = 'name'; // 'name', 'type', 'size', 'date'
 
-
-
+    // Performance optimizations
+    const fileListingCache = new NexusModules.performance.TTLCache(30000); // 30 second cache
+    const cleanupTracker = new NexusModules.performance.CleanupTracker();
 
     let allVisibleFiles = []; // Track all files in current view for selection
 
@@ -730,17 +731,20 @@ window.addEventListener('DOMContentLoaded', () => {
             });
 
 
-            // Search functionality
+            // Search functionality with debouncing
             const searchInput = container.querySelector('#files-search');
             const searchClear = container.querySelector('#files-search-clear');
 
-            searchInput.addEventListener('input', (e) => {
-                searchQuery = e.target.value.toLowerCase();
+            // Debounced search handler - wait 300ms after user stops typing
+            const debouncedSearch = debounce((value, provider) => {
+                searchQuery = value.toLowerCase();
                 searchClear.style.display = searchQuery ? 'block' : 'none';
+                loadFiles(currentPath, container, provider, false);
+            }, 300);
 
-                // Re-render with filtered files
+            searchInput.addEventListener('input', (e) => {
                 const p = container.dataset.provider;
-                loadFiles(currentPath, container, p, false);
+                debouncedSearch(e.target.value, p);
             });
 
             searchClear.addEventListener('click', () => {
@@ -865,7 +869,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
             });
 
-            filesGrid.addEventListener('mousemove', (e) => {
+            // Throttled mousemove for drag selection - limit to 60fps
+            const throttledDragMove = rafThrottle((e) => {
                 if (!isDragging) return;
 
                 const rect = filesGrid.getBoundingClientRect();
@@ -885,6 +890,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Update selection based on rectangle intersection
                 updateDragSelection(left, top, width, height);
             });
+
+            filesGrid.addEventListener('mousemove', throttledDragMove);
 
             const endDragSelection = () => {
                 if (!isDragging) return;
@@ -1562,7 +1569,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Cache tous les conteneurs
         welcomeContainer.style.display = 'none';
+
+        // Clear webview src when hiding to free memory
+        if (webview.style.display !== 'none' && !serviceUrl.startsWith('internal://') && serviceUrl !== 'internal://add-service') {
+            // Only clear if we're switching away from an external service
+            const currentSrc = webview.src;
+            if (currentSrc && currentSrc !== serviceUrl) {
+                webview.src = 'about:blank';
+            }
+        }
         webview.style.display = 'none';
+
         todoAppContainer.style.display = 'none';
         dashboardContainer.style.display = 'none';
         filesAppContainer.style.display = 'none';
@@ -1690,7 +1707,24 @@ window.addEventListener('DOMContentLoaded', () => {
 
         try {
             const api = window.api[providerName];
-            const items = await api.ls(path);
+
+            // Check cache first (only for non-search, non-sort scenarios)
+            const cacheKey = `${providerName}:${path}`;
+            let items;
+
+            if (!searchQuery && sortBy === 'name' && fileListingCache.has(cacheKey)) {
+                // Use cached data
+                items = fileListingCache.get(cacheKey);
+                console.log('[Performance] Using cached file listing for:', path);
+            } else {
+                // Fetch from API
+                items = await api.ls(path);
+
+                // Cache the result (only if no search/sort active)
+                if (!searchQuery && sortBy === 'name') {
+                    fileListingCache.set(cacheKey, items);
+                }
+            }
             const config = await api.getConfig();
             const showHidden = config ? config.showHiddenFiles : false;
 

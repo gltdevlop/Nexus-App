@@ -343,11 +343,15 @@ html {
     background-color: var(--background-dark);
     overflow: hidden;
     height: 100%;
+    /* CSS containment for performance */
+    contain: layout style paint;
 }
 
 .content-area>div {
     height: 100%;
     box-sizing: border-box;
+    /* Isolate each app container */
+    contain: layout style;
 }
 
 /* Apply overflow only to containers that don't manage their own scrolling */

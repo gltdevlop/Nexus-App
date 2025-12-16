@@ -316,12 +316,13 @@
         </div>
     </div>
 
-    <!-- Load modular components first -->
+    <!-- Load performance utilities first -->
+    <script src="./renderer/shared/performance-utils.js"></script>
     <script src="./renderer/shared/utils.js"></script>
-    <script src="./renderer/apps/dashboard-app.js"></script>
-    <script src="./renderer/shared/services.js"></script>
-    <script src="./renderer/files/files-selection.js"></script>
-    <script src="./renderer/files/files-navigation.js"></script>
+    <script src="./renderer/apps/dashboard-app.js" defer></script>
+    <script src="./renderer/shared/services.js" defer></script>
+    <script src="./renderer/files/files-selection.js" defer></script>
+    <script src="./renderer/files/files-navigation.js" defer></script>
 
     <!-- On lie notre script de rendu qui gère l'interactivité de la page -->
     <script src="./renderer.js"></script>
