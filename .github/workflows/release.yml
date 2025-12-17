@@ -44,6 +44,8 @@ jobs:
 
       - name: Build Electron app (macOS)
         run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
@@ -74,6 +76,8 @@ jobs:
 
       - name: Build Electron app (Windows)
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
