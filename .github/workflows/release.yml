@@ -9,13 +9,27 @@ permissions:
   contents: write  # Required to create releases and upload assets
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
+  # Create release first
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
 
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-
+  # Build macOS
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v3
@@ -28,36 +42,45 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build/release Electron app
-        uses: samuelmeuli/action-electron-builder@v1
+      - name: Build Electron app (macOS)
+        run: npm run build:mac
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
         with:
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-          # If the commit is tagged with a version (e.g., "v1.0.0"),
-          # release the app after building
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-
-          # macOS code signing (optional - comment out if not using)
-          # mac_certs: ${{ secrets.MAC_CERTS }}
-          # mac_certs_password: ${{ secrets.MAC_CERTS_PASSWORD }}
-
-      - name: Upload artifacts (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-builds
-          path: |
+          files: |
             dist/*.dmg
             dist/*.zip
+            dist/*.blockmap
             dist/latest-mac.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
+  # Build Windows
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
         with:
-          name: windows-builds
-          path: |
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Electron app (Windows)
+        run: npm run build:win
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
             dist/*.exe
+            dist/*.blockmap
             dist/latest.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
