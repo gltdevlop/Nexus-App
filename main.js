@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { autoUpdater } = require('electron-updater');
 
 // INTERNAL MODULES
 const setupTodo = require('./internal/todo');
@@ -14,6 +15,60 @@ const setupAi = require('./internal/ai');
 const userDataPath = app.getPath('userData');
 const servicesFilePath = path.join(userDataPath, 'services.json');
 const firstUseFilePath = path.join(userDataPath, 'firstUse.json');
+
+// --- Auto-Updater Configuration ---
+let mainWindow;
+
+// Configure auto-updater
+autoUpdater.autoDownload = false; // Don't auto-download, ask user first
+autoUpdater.autoInstallOnAppQuit = true;
+
+// Auto-updater event handlers
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for updates...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-available', {
+      version: info.version,
+      releaseNotes: info.releaseNotes,
+      releaseDate: info.releaseDate
+    });
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('Update not available. Current version is:', info.version);
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Error in auto-updater:', err);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-error', err.message);
+  }
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`);
+  if (mainWindow) {
+    mainWindow.webContents.send('download-progress', {
+      percent: progressObj.percent,
+      transferred: progressObj.transferred,
+      total: progressObj.total
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-downloaded', {
+      version: info.version
+    });
+  }
+});
 
 app.whenReady().then(() => {
   const userDataPath = app.getPath('userData');
@@ -146,10 +201,39 @@ app.whenReady().then(() => {
       return 'utilisateur';
     }
   });
+
+  // --- Auto-Update IPC Handlers ---
+  ipcMain.handle('check-for-updates', async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return { success: true, updateInfo: result?.updateInfo };
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('download-update', async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return { success: true };
+    } catch (error) {
+      console.error('Error downloading update:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('install-update', () => {
+    autoUpdater.quitAndInstall(false, true);
+  });
+
+  ipcMain.handle('open-release-page', () => {
+    shell.openExternal('https://github.com/gltdevlop/Nexus-App/releases/latest');
+  });
 });
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 800,
     webPreferences: {
@@ -168,5 +252,18 @@ function createWindow() {
   } else {
     mainWindow.loadFile('index.html');
   }
+
+  // Check for updates after window is ready (only if not first use)
+  if (!isFirstUse) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      // Wait 3 seconds before checking for updates to let the app fully load
+      setTimeout(() => {
+        autoUpdater.checkForUpdates().catch(err => {
+          console.error('Failed to check for updates:', err);
+        });
+      }, 3000);
+    });
+  }
+
   // mainWindow.webContents.openDevTools();
 }

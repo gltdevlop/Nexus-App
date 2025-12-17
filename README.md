@@ -339,7 +339,63 @@ npm start
 - Les builds sont créés pour les architectures natives (meilleure performance)
 - Le mode développement peut être plus lent que la version buildée
 
-### Mises à jour
+### Auto-Update (Mises à jour automatiques)
+
+L'application intègre un système de mise à jour automatique via GitHub Releases.
+
+#### Comment ça fonctionne
+
+**Pour les utilisateurs** :
+- Au démarrage de l'application, une vérification automatique des mises à jour est effectuée
+- Si une nouvelle version est disponible, une notification apparaît
+- **Versions auto-updatable** (macOS DMG/ZIP, Windows NSIS) :
+  - Cliquez sur "Télécharger" pour télécharger la mise à jour en arrière-plan
+  - Une fois téléchargée, cliquez sur "Installer et redémarrer"
+  - L'application se fermera, s'installera et redémarrera automatiquement
+- **Version portable Windows** :
+  - Une notification apparaît avec un bouton "Télécharger manuellement"
+  - Cliquez pour ouvrir la page GitHub Releases
+  - Téléchargez et installez manuellement la nouvelle version
+
+**Vos données sont préservées** : Tous vos services, tâches, calendriers et paramètres sont conservés lors de la mise à jour.
+
+#### Processus de release (pour les développeurs)
+
+Pour publier une nouvelle version avec auto-update :
+
+1. **Mettre à jour la version** dans `package.json` :
+   ```json
+   {
+     "version": "1.2.0"
+   }
+   ```
+
+2. **Commit et tag** :
+   ```bash
+   git add package.json
+   git commit -m "Release v1.2.0"
+   git tag v1.2.0
+   git push origin main
+   git push origin v1.2.0
+   ```
+
+3. **GitHub Actions** se charge automatiquement de :
+   - Builder l'application pour macOS et Windows
+   - Créer une release sur GitHub
+   - Uploader les fichiers (DMG, ZIP, NSIS, Portable)
+   - Générer les fichiers de mise à jour (`latest-mac.yml`, `latest.yml`)
+
+4. **Les utilisateurs** recevront automatiquement la notification de mise à jour au prochain démarrage de l'app.
+
+#### Configuration requise
+
+Le workflow GitHub Actions (`.github/workflows/release.yml`) est déjà configuré. Aucune configuration supplémentaire n'est nécessaire, le `GITHUB_TOKEN` est fourni automatiquement par GitHub.
+
+**Optionnel** : Pour signer les applications macOS, ajoutez ces secrets dans les paramètres du repository :
+- `MAC_CERTS` : Certificat de signature macOS (base64)
+- `MAC_CERTS_PASSWORD` : Mot de passe du certificat
+
+### Mises à jour des dépendances
 
 Pour mettre à jour les dépendances :
 

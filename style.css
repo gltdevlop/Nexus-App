@@ -780,3 +780,63 @@ input:checked+.slider {
 input:checked+.slider:before {
     transform: translateX(20px);
 }
+
+/* --- Update Modal Styles --- */
+.update-modal-content {
+    width: 450px;
+}
+
+.update-modal-content h2 {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.update-modal-content p {
+    color: var(--text-secondary);
+    margin: 10px 0;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 122, 255, 0.5);
+}
+
+#update-progress-text {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+}
+
+.modal-actions button {
+    transition: all 0.3s ease;
+}
+
+.modal-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+#update-later-btn {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 2px solid var(--border-color);
+}
+
+#update-later-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}

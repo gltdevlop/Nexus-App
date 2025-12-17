@@ -102,5 +102,18 @@ contextBridge.exposeInMainWorld('api', {
     getConfig: () => ipcRenderer.invoke('ai:getConfig'),
     saveConfig: (config) => ipcRenderer.invoke('ai:saveConfig', config),
     getProviders: () => ipcRenderer.invoke('ai:getProviders')
+  },
+
+  // --- Auto-Update ---
+  autoUpdate: {
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    downloadUpdate: () => ipcRenderer.invoke('download-update'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    openReleasePage: () => ipcRenderer.invoke('open-release-page'),
+    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
+    onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, info) => callback(info)),
+    onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
+    onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, progress) => callback(progress)),
+    onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info))
   }
 });
