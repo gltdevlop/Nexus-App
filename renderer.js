@@ -106,32 +106,42 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         // Cmd/Ctrl + C: Copy
-        if (cmdOrCtrl && e.key === 'c' && selectedFiles.length > 0) {
+        if (cmdOrCtrl && e.key === 'c') {
             e.preventDefault();
-            const container = document.getElementById('files-app-container');
-            clipboardFiles = [...selectedFiles];
-            clipboardOperation = 'copy';
-            clipboardProvider = container.dataset.provider;
+            if (selectedFiles.length > 0) {
+                clipboardFiles = selectedFiles;
+                clipboardOperation = 'copy';
+                clipboardProvider = filesAppContainer.dataset.provider;
 
-            // Remove cut styling
-            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+                // Remove cut styling from all files
+                document.querySelectorAll('.file-item.cut, .file-list-item.cut').forEach(el => el.classList.remove('cut'));
 
-            console.log(`Copied ${clipboardFiles.length} file(s) to clipboard`);
+                console.log(`Copied ${clipboardFiles.length} file(s) to clipboard`);
+            }
         }
 
         // Cmd/Ctrl + X: Cut
-        if (cmdOrCtrl && e.key === 'x' && selectedFiles.length > 0) {
+        if (cmdOrCtrl && e.key === 'x') {
             e.preventDefault();
-            const container = document.getElementById('files-app-container');
-            clipboardFiles = [...selectedFiles];
-            clipboardOperation = 'cut';
-            clipboardProvider = container.dataset.provider;
+            if (selectedFiles.length > 0) {
+                clipboardFiles = selectedFiles;
+                clipboardOperation = 'cut';
+                clipboardProvider = filesAppContainer.dataset.provider;
 
-            // Add cut styling
-            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
-            document.querySelectorAll('.file-item.selected').forEach(el => el.classList.add('cut'));
+                // Add cut styling to selected files
+                document.querySelectorAll('.file-item.cut, .file-list-item.cut').forEach(el => el.classList.remove('cut'));
+                selectedFiles.forEach(file => {
+                    const fileElements = document.querySelectorAll('.file-item, .file-list-item');
+                    fileElements.forEach(el => {
+                        const nameEl = el.querySelector('.file-name') || el.querySelector('.file-list-name');
+                        if (nameEl && nameEl.textContent === file.basename) {
+                            el.classList.add('cut');
+                        }
+                    });
+                });
 
-            console.log(`Cut ${clipboardFiles.length} file(s) to clipboard`);
+                console.log(`Cut ${clipboardFiles.length} file(s) to clipboard`);
+            }
         }
 
         // Cmd/Ctrl + V: Paste
@@ -237,14 +247,14 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     // Rename Logic using Modal
-    const showRenameModal = (targetFile) => {
+    const showRenameModal = (file) => {
         const modal = document.getElementById('files-rename-modal');
         const input = document.getElementById('files-rename-input');
-        const hiddenInput = document.getElementById('files-rename-old-path');
-        if (!modal || !input) return;
+        const oldPathInput = document.getElementById('files-rename-old-path');
 
-        input.value = targetFile.basename;
-        hiddenInput.value = targetFile.filename;
+        input.value = file.basename;
+        oldPathInput.value = file.filename;
+
         modal.style.display = 'flex';
         input.focus();
         input.select();
@@ -258,25 +268,22 @@ window.addEventListener('DOMContentLoaded', () => {
         if (e.target.id === 'files-rename-save-btn') {
             const modal = document.getElementById('files-rename-modal');
             const input = document.getElementById('files-rename-input');
-            const hiddenInput = document.getElementById('files-rename-old-path');
+            const oldPath = document.getElementById('files-rename-old-path').value;
 
             const newName = input.value.trim();
-            const oldPath = hiddenInput.value;
-            const oldName = oldPath.split('/').pop(); // approximate basename from path
+            const oldBasename = oldPath.split('/').pop(); // approximate basename from path
 
             modal.style.display = 'none';
 
-            if (newName && newName !== oldName) {
+            if (newName && newName !== oldBasename) {
                 try {
                     // Logic to reconstruct parent path from oldPath
                     // Assuming standard UNIX behavior: path/to/file
                     const lastSlashIndex = oldPath.lastIndexOf('/');
                     let parentPath = lastSlashIndex !== -1 ? oldPath.substring(0, lastSlashIndex) : "";
-                    if (!parentPath.endsWith('/')) parentPath += '/';
-                    // If oldPath was just "/file", parent is "/"
-                    if (oldPath.startsWith('/') && lastSlashIndex === 0) parentPath = '/';
+                    if (parentPath === "" && oldPath.startsWith('/')) parentPath = '/'; // Handle root files
 
-                    const newPath = parentPath + newName;
+                    const newPath = (parentPath === '/') ? `/${newName}` : `${parentPath}/${newName}`;
 
                     const container = document.getElementById('files-app-container');
                     const provider = container.dataset.provider;
@@ -338,7 +345,7 @@ window.addEventListener('DOMContentLoaded', () => {
             clipboardProvider = container.dataset.provider;
 
             // Remove cut styling from all files
-            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
+            document.querySelectorAll('.file-item.cut, .file-list-item.cut').forEach(el => el.classList.remove('cut'));
 
             console.log(`Copied ${clipboardFiles.length} file(s) to clipboard`);
         }
@@ -354,8 +361,16 @@ window.addEventListener('DOMContentLoaded', () => {
             clipboardProvider = container.dataset.provider;
 
             // Add cut styling to selected files
-            document.querySelectorAll('.file-item.cut').forEach(el => el.classList.remove('cut'));
-            document.querySelectorAll('.file-item.selected').forEach(el => el.classList.add('cut'));
+            document.querySelectorAll('.file-item.cut, .file-list-item.cut').forEach(el => el.classList.remove('cut'));
+            selectedFiles.forEach(file => {
+                const fileElements = document.querySelectorAll('.file-item, .file-list-item');
+                fileElements.forEach(el => {
+                    const nameEl = el.querySelector('.file-name') || el.querySelector('.file-list-name');
+                    if (nameEl && nameEl.textContent === file.basename) {
+                        el.classList.add('cut');
+                    }
+                });
+            });
 
             console.log(`Cut ${clipboardFiles.length} file(s) to clipboard`);
         }
@@ -464,7 +479,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function clearSelection() {
         selectedFiles = [];
         lastSelectedIndex = -1;
-        document.querySelectorAll('.file-item.selected').forEach(el => {
+        document.querySelectorAll('.file-item.selected, .file-list-item.selected').forEach(el => {
             el.classList.remove('selected');
             el.classList.remove('cut');
         });
@@ -495,31 +510,36 @@ window.addEventListener('DOMContentLoaded', () => {
         const start = Math.min(startIndex, endIndex);
         const end = Math.max(startIndex, endIndex);
 
-        const fileElements = document.querySelectorAll('.file-item');
+        const fileElements = document.querySelectorAll('.file-item, .file-list-item');
         for (let i = start; i <= end && i < allVisibleFiles.length; i++) {
             selectFile(allVisibleFiles[i], fileElements[i]);
         }
     }
 
     function selectAll() {
-        const fileElements = document.querySelectorAll('.file-item');
+        const fileElements = document.querySelectorAll('.file-item, .file-list-item');
         allVisibleFiles.forEach((file, index) => {
             selectFile(file, fileElements[index]);
         });
     }
 
     function updateDragSelection(left, top, width, height) {
-        const fileElements = document.querySelectorAll('.file-item');
+        // Determine which view mode we're in
+        const grid = document.getElementById('files-grid');
+        const listContent = document.getElementById('files-list-content');
+        const isGridView = currentViewMode === 'grid';
+
+        const fileElements = document.querySelectorAll(isGridView ? '.file-item' : '.file-list-item');
+        const container = isGridView ? grid : listContent;
         const selectionRect = { left, top, right: left + width, bottom: top + height };
 
         fileElements.forEach((el, index) => {
             const rect = el.getBoundingClientRect();
-            const grid = document.getElementById('files-grid');
-            const gridRect = grid.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
 
-            // Calculate element position relative to grid
-            const elLeft = rect.left - gridRect.left + grid.scrollLeft;
-            const elTop = rect.top - gridRect.top + grid.scrollTop;
+            // Calculate element position relative to container
+            const elLeft = rect.left - containerRect.left + container.scrollLeft;
+            const elTop = rect.top - containerRect.top + container.scrollTop;
             const elRight = elLeft + rect.width;
             const elBottom = elTop + rect.height;
 
@@ -836,8 +856,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // --- DRAG SELECTION RECTANGLE ---
             const filesGrid = container.querySelector('#files-grid');
+            const filesListContent = container.querySelector('#files-list-content');
             const filesMainView = container.querySelector('#files-main-view');
 
+            // Setup drag selection for grid view
             filesGrid.addEventListener('mousedown', (e) => {
                 // Only start drag selection on empty space (not on file items)
                 if (e.target.closest('.file-item')) return;
@@ -873,9 +895,10 @@ window.addEventListener('DOMContentLoaded', () => {
             const throttledDragMove = rafThrottle((e) => {
                 if (!isDragging) return;
 
-                const rect = filesGrid.getBoundingClientRect();
-                const currentX = e.clientX - rect.left + filesGrid.scrollLeft;
-                const currentY = e.clientY - rect.top + filesGrid.scrollTop;
+                const container = currentViewMode === 'grid' ? filesGrid : filesListContent;
+                const rect = container.getBoundingClientRect();
+                const currentX = e.clientX - rect.left + container.scrollLeft;
+                const currentY = e.clientY - rect.top + container.scrollTop;
 
                 const left = Math.min(dragStartX, currentX);
                 const top = Math.min(dragStartY, currentY);
@@ -892,6 +915,7 @@ window.addEventListener('DOMContentLoaded', () => {
             });
 
             filesGrid.addEventListener('mousemove', throttledDragMove);
+            filesListContent.addEventListener('mousemove', throttledDragMove);
 
             const endDragSelection = () => {
                 if (!isDragging) return;
@@ -903,6 +927,44 @@ window.addEventListener('DOMContentLoaded', () => {
 
             filesGrid.addEventListener('mouseup', endDragSelection);
             filesGrid.addEventListener('mouseleave', endDragSelection);
+            filesListContent.addEventListener('mouseup', endDragSelection);
+            filesListContent.addEventListener('mouseleave', endDragSelection);
+
+            // Setup drag selection for list view
+            filesListContent.addEventListener('mousedown', (e) => {
+                // Only start drag selection on empty space (not on file items)
+                if (e.target.closest('.file-list-item')) return;
+
+                // Don't start drag selection if right-clicking
+                if (e.button !== 0) return;
+
+                // Clear selection when clicking on empty space
+                clearSelection();
+
+                isDragging = true;
+                const rect = filesListContent.getBoundingClientRect();
+                dragStartX = e.clientX - rect.left + filesListContent.scrollLeft;
+                dragStartY = e.clientY - rect.top + filesListContent.scrollTop;
+
+                // Create selection box element if it doesn't exist
+                if (!selectionBox) {
+                    selectionBox = document.createElement('div');
+                    selectionBox.className = 'selection-rectangle';
+                }
+
+                // Append to list content if not already there
+                if (!filesListContent.contains(selectionBox)) {
+                    filesListContent.appendChild(selectionBox);
+                }
+
+                selectionBox.style.left = dragStartX + 'px';
+                selectionBox.style.top = dragStartY + 'px';
+                selectionBox.style.width = '0px';
+                selectionBox.style.height = '0px';
+                selectionBox.style.display = 'block';
+
+                e.preventDefault();
+            });
 
             // Drag & Drop
             const dropZone = container.querySelector('#files-main-view');
