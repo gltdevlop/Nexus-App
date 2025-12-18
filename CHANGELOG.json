@@ -1,6 +1,20 @@
 {
     "versions": [
         {
+            "version": "1.2.3",
+            "date": "2025-12-18",
+            "features": [],
+            "improvements": [
+                "Amélioration de la fiabilité du système de mise à jour automatique",
+                "Gestion automatique du téléchargement manuel en cas d'échec de l'auto-update"
+            ],
+            "fixes": [
+                "Correction du problème de mise à jour silencieuse sur Windows (bypass signature)",
+                "Correction des erreurs 404 lors du téléchargement des mises à jour (noms de fichiers standardisés)",
+                "Affichage automatique du bouton de téléchargement manuel en cas d'erreur sur macOS"
+            ]
+        },
+        {
             "version": "1.2.2",
             "date": "2025-12-18",
             "features": [
