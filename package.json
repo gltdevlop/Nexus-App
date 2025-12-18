@@ -11,8 +11,8 @@
     "start": "electron .",
     "build": "electron-builder",
     "build:mac": "npm run build:mac:x64 && npm run build:mac:arm64 && node scripts/merge-mac-latest.js",
-    "build:mac:x64": "DMG_SUFFIX='' ZIP_SUFFIX='-mac' electron-builder --mac --x64 -c.directories.output=dist/x64",
-    "build:mac:arm64": "DMG_SUFFIX='-arm64' ZIP_SUFFIX='-arm64-mac' electron-builder --mac --arm64 -c.directories.output=dist/arm64",
+    "build:mac:x64": "DMG_SUFFIX='' ZIP_SUFFIX='-mac' electron-builder --mac --x64 -c.directories.output=dist/x64 -p never",
+    "build:mac:arm64": "DMG_SUFFIX='-arm64' ZIP_SUFFIX='-arm64-mac' electron-builder --mac --arm64 -c.directories.output=dist/arm64 -p never",
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win"
   },

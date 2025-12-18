@@ -27,36 +27,7 @@ jobs:
           prerelease: false
 
   # Build macOS
-  build-macos:
-    needs: create-release
-    runs-on: macos-latest
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v3
 
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Electron app (macOS)
-        run: npm run build:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/**/*.dmg
-            dist/**/*.zip
-            dist/**/*.blockmap
-            dist/latest-mac.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build Windows
   build-windows:
