@@ -456,5 +456,5 @@ function createWindow() {
     });
   }
 
-  mainWindow.webContents.openDevTools();
+
 }

@@ -869,6 +869,9 @@
     padding: 15px;
     transition: all 0.3s ease;
     cursor: pointer;
+    position: relative;
+    padding-right: 30px;
+    /* Space for delete button */
 }
 
 .event-card:hover {
@@ -893,6 +896,7 @@
     font-size: 1.1em;
     margin-bottom: 5px;
     color: var(--text-primary);
+    padding-right: 5px;
 }
 
 .event-card-time {
@@ -941,6 +945,40 @@
     background: rgba(100, 100, 255, 0.2);
     color: #6464ff;
     border: 1px solid rgba(100, 100, 255, 0.3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+    vertical-align: middle;
+}
+
+.event-card-delete {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+}
+
+.event-card:hover .event-card-delete {
+    opacity: 1;
+}
+
+.event-card-delete:hover {
+    background: rgba(220, 38, 38, 0.2);
+    color: #ef4444;
+    transform: translateY(-50%) scale(1.1);
 }
 
 .no-events {

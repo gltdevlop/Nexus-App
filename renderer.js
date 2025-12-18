@@ -3775,6 +3775,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 monthGrid.appendChild(cell);
             }
+
+            // Refresh sidebar if it's visible (selectedDate is set)
+            if (selectedDate) {
+                // Check if selectedDate is in the current month view (optional, but good UX)
+                // Actually, if we just refresh it, it keeps the sidebar in sync even if we navigate away
+                // But typically if we navigate away, selectedDate might not be relevant if we didn't clear it
+                // However, the requested behavior is to refresh the sidebar on sync. 
+                // Since this function is called after every data load/sync, this is the right place.
+                showDayDetail(selectedDate);
+            }
         }
 
         // Render mini calendar
@@ -3857,8 +3867,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Google calendars
             if (availableGoogleCalendars && availableGoogleCalendars.length > 0) {
+                // Check if we have any explicit selection
+                const hasSelection = Object.keys(visibleCalendars.google).length > 0;
+
                 availableGoogleCalendars.forEach(cal => {
-                    const isVisible = visibleCalendars.google[cal.id] !== false; // Default to true
+                    let isVisible;
+                    if (hasSelection) {
+                        isVisible = visibleCalendars.google[cal.id] === true;
+                    } else {
+                        // Default to primary if no selection
+                        isVisible = !!cal.primary;
+                    }
                     const item = createCalendarListItem(`google-${cal.id}`, cal.name, cal.backgroundColor || '#34A853', isVisible, cal.id);
                     calendarListItems.appendChild(item);
                 });
@@ -4020,20 +4039,61 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     const calendarName = event.calendarName || '';
 
+                    // Get Google Calendar color if available
+                    let borderColorStyle = '';
+                    let sourceStyle = '';
+                    if (event.source === 'google' && event.colorId) {
+                        const color = getGoogleCalendarColor(event.colorId);
+                        if (color) {
+                            borderColorStyle = `style="border-left-color: ${color};"`;
+                            sourceStyle = `style="background-color: ${color}33; color: ${color};"`;
+                        }
+                    } else if (event.source === 'google') {
+                        // Default google green
+                        sourceStyle = `style="background-color: rgba(52, 168, 83, 0.2); color: #34A853;"`;
+                    }
+
                     card.innerHTML = `
                         <div class="event-card-title">${event.title}</div>
                         ${event.time ? `<div class="event-card-time">${event.time}</div>` : ''}
                         ${event.description ? `<div class="event-card-description">${event.description}</div>` : ''}
-                        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-                            <span class="event-card-source ${event.source}">
+                        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                            <span class="event-card-source ${event.source}" ${sourceStyle}>
                                 ${event.source === 'todo' ? 'Tâche' : event.source === 'local' ? 'Local' : 'Google'}
                             </span>
                             ${calendarName ? `<span class="event-card-calendar">${calendarName}</span>` : ''}
                         </div>
+                        <button class="event-card-delete" title="Supprimer">×</button>
                     `;
 
+                    // Apply dynamic border color if set
+                    if (borderColorStyle) {
+                        // We need to set it on the element after creation or via inline style above
+                        // Since we are setting innerHTML, let's use the style attribute on the card directly
+                        // But we can't easily inject it into the 'card' creation above without changing its class logic completely
+                        // So we will set it here
+                        const color = getGoogleCalendarColor(event.colorId);
+                        if (color) {
+                            card.style.borderLeftColor = color;
+                        }
+                    }
+
                     if (event.source !== 'todo') {
-                        card.addEventListener('click', () => openEventModal(event));
+                        card.addEventListener('click', (e) => {
+                            // Don't open modal if delete button was clicked
+                            if (!e.target.matches('.event-card-delete')) {
+                                openEventModal(event);
+                            }
+                        });
+
+                        // Add delete listener
+                        const deleteBtn = card.querySelector('.event-card-delete');
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                deleteEvent(event);
+                            });
+                        }
                     }
 
                     eventsList.appendChild(card);
@@ -4345,23 +4405,28 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async function deleteEvent() {
-            if (!editingEvent) return;
+        async function deleteEvent(eventToDelete = null) {
+            // Use passed event or currently editing event
+            const targetEvent = eventToDelete || editingEvent;
+
+            if (!targetEvent) return;
 
             if (!confirm('Voulez-vous vraiment supprimer cet événement ?')) return;
 
             try {
-                if (editingEvent.source === 'google') {
+                if (targetEvent.source === 'google') {
                     await window.api.gcal.deleteEvent({
-                        eventId: editingEvent.id,
-                        calendarId: editingEvent.calendarId
+                        eventId: targetEvent.id,
+                        calendarId: targetEvent.calendarId
                     });
-                } else if (editingEvent.source === 'local') {
-                    localEvents = localEvents.filter(e => e.id !== editingEvent.id);
+                } else if (targetEvent.source === 'local') {
+                    localEvents = localEvents.filter(e => e.id !== targetEvent.id);
                     await window.api.calendar.saveEvents({ events: localEvents });
                 }
 
+                // Close modal if open
                 eventModal.classList.remove('visible');
+
                 await loadData();
                 renderCalendar();
                 if (selectedDate) showDayDetail(selectedDate);
