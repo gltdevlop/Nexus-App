@@ -42,6 +42,133 @@
 
         // Setup button handlers
         setupUpdateButtons();
+
+        // Check for new version and show changelog if needed
+        checkAndShowChangelog();
+    }
+
+    // Check if there's a new version and show changelog
+    async function checkAndShowChangelog() {
+        try {
+            // Get current app version from package.json
+            const currentVersion = await getCurrentVersion();
+
+            // Get last seen version
+            const lastSeenResult = await window.api.changelog.getLastSeenVersion();
+            const lastSeenVersion = lastSeenResult.success ? lastSeenResult.version : null;
+
+            console.log('Current version:', currentVersion);
+            console.log('Last seen version:', lastSeenVersion);
+
+            // If versions are different (or first run), show changelog
+            if (lastSeenVersion !== currentVersion) {
+                console.log('New version detected, showing changelog');
+                await showWhatsNewModal(currentVersion);
+            }
+        } catch (error) {
+            console.error('Error checking changelog:', error);
+        }
+    }
+
+    // Get current app version
+    async function getCurrentVersion() {
+        try {
+            const changelogResult = await window.api.changelog.getChangelog();
+            if (changelogResult.success && changelogResult.changelog.versions.length > 0) {
+                return changelogResult.changelog.versions[0].version;
+            }
+        } catch (error) {
+            console.error('Error getting current version:', error);
+        }
+        return null;
+    }
+
+    // Show What's New modal
+    async function showWhatsNewModal(version) {
+        try {
+            const result = await window.api.changelog.getChangelog();
+            if (!result.success) {
+                console.error('Failed to load changelog:', result.error);
+                return;
+            }
+
+            const changelog = result.changelog;
+            const versionData = changelog.versions.find(v => v.version === version);
+
+            if (!versionData) {
+                console.error('Version not found in changelog:', version);
+                return;
+            }
+
+            // Populate modal
+            document.getElementById('whats-new-version-number').textContent = versionData.version;
+            document.getElementById('whats-new-version-date').textContent = formatDate(versionData.date);
+
+            // Features
+            const featuresSection = document.getElementById('whats-new-features');
+            const featuresList = document.getElementById('whats-new-features-list');
+            if (versionData.features && versionData.features.length > 0) {
+                featuresList.innerHTML = versionData.features.map(f => `<li>${f}</li>`).join('');
+                featuresSection.style.display = 'block';
+            } else {
+                featuresSection.style.display = 'none';
+            }
+
+            // Improvements
+            const improvementsSection = document.getElementById('whats-new-improvements');
+            const improvementsList = document.getElementById('whats-new-improvements-list');
+            if (versionData.improvements && versionData.improvements.length > 0) {
+                improvementsList.innerHTML = versionData.improvements.map(i => `<li>${i}</li>`).join('');
+                improvementsSection.style.display = 'block';
+            } else {
+                improvementsSection.style.display = 'none';
+            }
+
+            // Fixes
+            const fixesSection = document.getElementById('whats-new-fixes');
+            const fixesList = document.getElementById('whats-new-fixes-list');
+            if (versionData.fixes && versionData.fixes.length > 0) {
+                fixesList.innerHTML = versionData.fixes.map(f => `<li>${f}</li>`).join('');
+                fixesSection.style.display = 'block';
+            } else {
+                fixesSection.style.display = 'none';
+            }
+
+            // Show modal
+            const modal = document.getElementById('whats-new-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Error showing What\'s New modal:', error);
+        }
+    }
+
+    // Format date to French format
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('fr-FR', options);
+    }
+
+    // Setup What's New modal close button
+    function setupWhatsNewModal() {
+        const closeBtn = document.getElementById('whats-new-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', async () => {
+                const modal = document.getElementById('whats-new-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+
+                // Mark current version as seen
+                const currentVersion = await getCurrentVersion();
+                if (currentVersion) {
+                    await window.api.changelog.setLastSeenVersion(currentVersion);
+                    console.log('Version marked as seen:', currentVersion);
+                }
+            });
+        }
     }
 
     function showUpdateModal(info) {
@@ -155,9 +282,23 @@
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAutoUpdate);
+        document.addEventListener('DOMContentLoaded', () => {
+            initAutoUpdate();
+            setupWhatsNewModal();
+        });
     } else {
         initAutoUpdate();
+        setupWhatsNewModal();
     }
+
+    // Expose test function to window for testing
+    window.testWhatsNew = async function () {
+        const currentVersion = await getCurrentVersion();
+        if (currentVersion) {
+            await showWhatsNewModal(currentVersion);
+        } else {
+            console.error('Could not get current version');
+        }
+    };
 
 })();

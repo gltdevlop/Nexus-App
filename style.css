@@ -238,11 +238,13 @@ html {
 .sidebar.collapsed .service-list li {
     justify-content: center;
     align-items: center;
-    padding: 12px 5px;
+    padding: 12px 0;
+    gap: 0;
 }
 
 .sidebar.collapsed .service-list li .service-icon {
     margin: 0;
+    width: auto;
 }
 
 /* Tooltip for collapsed mode */
@@ -355,7 +357,7 @@ html {
 }
 
 /* Apply overflow only to containers that don't manage their own scrolling */
-.content-area>div:not(#calendar-app-container):not(#todo-app-container) {
+.content-area>div:not(#calendar-app-container):not(#todo-app-container):not(#habits-app-container) {
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -839,4 +841,48 @@ input:checked+.slider:before {
 #update-later-btn:hover {
     background-color: var(--border-color);
     color: var(--text-primary);
+}
+
+/* --- What's New Modal Styles --- */
+.whats-new-modal-content {
+    width: 550px;
+    max-height: 80vh;
+}
+
+.whats-new-modal-content h2 {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#whats-new-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+#whats-new-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#whats-new-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#whats-new-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+#whats-new-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+#whats-new-content ul {
+    color: var(--text-primary);
+}
+
+#whats-new-content li {
+    margin-bottom: 8px;
+    line-height: 1.5;
 }

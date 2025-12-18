@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="calendar.css">
     <link rel="stylesheet" href="calendar-app.css">
     <link rel="stylesheet" href="files.css">
+    <link rel="stylesheet" href="habits.css">
+    <link rel="stylesheet" href="habits-modal.css">
 </head>
 
 <body>
@@ -57,6 +59,9 @@
             <div id="calendar-app-container" style="display: none;">
                 <!-- Le contenu de l'application Calendrier sera injecté ici -->
             </div>
+            <div id="habits-app-container" style="display: none;">
+                <!-- Le contenu de l'application Habitudes sera injecté ici -->
+            </div>
         </div>
     </div>
 
@@ -75,6 +80,7 @@
                 <option value="internal://dashboard">Dashboard</option>
                 <option value="internal://todo">ToDo List</option>
                 <option value="internal://calendar">Calendrier</option>
+                <option value="internal://habits">Habitudes</option>
                 <option value="internal://files">Fichiers WebDAV</option>
                 <option value="internal://gdrive">Fichiers GDrive</option>
                 <option value="internal://ai">IA</option>
@@ -110,7 +116,7 @@
                         <li data-section="gdrive">Fichiers GDrive</li>
                         <li data-section="gcal">Google Calendar</li>
                         <li data-section="ai">IA</li>
-                        <!-- Future sections: <li data-section="general">Général</li> -->
+                        <li data-section="general">Général</li>
                     </ul>
                 </div>
                 <div class="settings-content-wrapper">
@@ -306,6 +312,37 @@
                         <div id="settings-ai-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
                         </div>
                     </div>
+
+                    <!-- Section General -->
+                    <div id="settings-section-general" class="settings-section" style="display:none;">
+                        <h3>Réinitialisation de l'application</h3>
+                        <p class="setting-desc">Réinitialisez complètement l'application et supprimez toutes les
+                            données.</p>
+
+                        <div
+                            style="background: rgba(255, 59, 48, 0.1); border-left: 3px solid #ff3b30; padding: 15px; margin-bottom: 20px; font-size: 0.9em; color: #ddd; border-radius: 8px;">
+                            <strong>⚠️ Attention :</strong> Cette action est irréversible et supprimera :
+                            <ul style="margin: 10px 0 0 20px; padding: 0;">
+                                <li>Tous les services configurés</li>
+                                <li>Les connexions WebDAV et Google Drive</li>
+                                <li>Les événements du calendrier local</li>
+                                <li>Toutes les tâches ToDo</li>
+                                <li>Les habitudes et leur historique</li>
+                                <li>Tous les réglages de l'application</li>
+                            </ul>
+                            <p style="margin-top: 10px; margin-bottom: 0;">L'application redémarrera et vous devrez
+                                reconfigurer tous vos services.</p>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 20px;">
+                            <button id="settings-reset-app-btn"
+                                style="background-color: #ff3b30; color: white; width: 100%; padding: 12px; font-weight: 600;">
+                                🗑️ Réinitialiser l'application
+                            </button>
+                        </div>
+                        <div id="settings-reset-status" style="margin-top: 10px; font-size: 0.9em; color: gray;">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
@@ -341,11 +378,53 @@
         </div>
     </div>
 
+    <!-- What's New Modal (Changelog) -->
+    <div id="whats-new-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content whats-new-modal-content">
+            <h2>🎉 Quoi de Neuf</h2>
+            <div id="whats-new-version"
+                style="font-size: 0.9em; color: var(--text-secondary, #888); margin-bottom: 20px;">
+                Version <span id="whats-new-version-number"></span> - <span id="whats-new-version-date"></span>
+            </div>
+
+            <div id="whats-new-content" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                <!-- Features Section -->
+                <div id="whats-new-features" style="display: none; margin-bottom: 20px;">
+                    <h3 style="color: #34A853; font-size: 1em; margin-bottom: 10px;">✨ Nouvelles fonctionnalités</h3>
+                    <ul id="whats-new-features-list" style="margin: 0; padding-left: 20px; list-style: disc;">
+                    </ul>
+                </div>
+
+                <!-- Improvements Section -->
+                <div id="whats-new-improvements" style="display: none; margin-bottom: 20px;">
+                    <h3 style="color: #4285F4; font-size: 1em; margin-bottom: 10px;">🚀 Améliorations</h3>
+                    <ul id="whats-new-improvements-list" style="margin: 0; padding-left: 20px; list-style: disc;">
+                    </ul>
+                </div>
+
+                <!-- Fixes Section -->
+                <div id="whats-new-fixes" style="display: none; margin-bottom: 20px;">
+                    <h3 style="color: #EA4335; font-size: 1em; margin-bottom: 10px;">🐛 Corrections</h3>
+                    <ul id="whats-new-fixes-list" style="margin: 0; padding-left: 20px; list-style: disc;">
+                    </ul>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="whats-new-close-btn"
+                    style="background-color: var(--primary-color, #007aff); color: white; width: 100%;">Compris
+                    !</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Load performance utilities first -->
+
     <script src="./renderer/shared/performance-utils.js"></script>
     <script src="./renderer/shared/utils.js"></script>
     <script src="./renderer/shared/auto-update.js"></script>
     <script src="./renderer/apps/dashboard-app.js" defer></script>
+    <script src="./renderer/apps/habits-app.js" defer></script>
     <script src="./renderer/shared/services.js" defer></script>
     <script src="./renderer/files/files-selection.js" defer></script>
     <script src="./renderer/files/files-navigation.js" defer></script>

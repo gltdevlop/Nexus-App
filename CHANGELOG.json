@@ -1,0 +1,41 @@
+{
+    "versions": [
+        {
+            "version": "1.2.2",
+            "date": "2025-12-18",
+            "features": [
+                "🎯 Habit Tracker : Suivez vos habitudes quotidiennes avec un système de suivi visuel",
+                "📊 Heatmap de progression : Visualisez vos habitudes sur une carte de chaleur annuelle",
+                "📈 Statistiques détaillées : Taux de réussite, séries actuelles et meilleures séries",
+                "📅 Vue calendrier mensuel : Consultez vos habitudes complétées par mois",
+                "✅ Validation quotidienne : Marquez vos habitudes comme complétées chaque jour",
+                "👍 N'hésitez pas à l'ajouter avec le bouton +, puis sélectionnez Habitudes !",
+                "🎨 Refonte complète de l'interface du calendrier avec un design moderne et épuré"
+            ],
+            "improvements": [
+                "Amélioration des performances globales de l'application",
+                "Optimisation de la gestion de la mémoire",
+                "Interface utilisateur plus fluide avec animations optimisées",
+                "Ajout d'un modal 'Quoi de Neuf' qui s'affiche après chaque mise à jour",
+                "possibilité de réinitialiser l'application dans les réglages"
+            ],
+            "fixes": [
+                "Correction de bugs mineurs dans le gestionnaire de fichiers",
+                "Amélioration de la stabilité du calendrier"
+            ]
+        },
+        {
+            "version": "1.2.1",
+            "date": "2025-12-17",
+            "features": [
+                "Ajout d'un modal 'Quoi de Neuf' qui s'affiche après chaque mise à jour",
+                "Affichage automatique du changelog après une mise à jour réussie"
+            ],
+            "improvements": [
+                "Amélioration de l'expérience utilisateur lors des mises à jour",
+                "Meilleure communication des nouveautés et changements"
+            ],
+            "fixes": []
+        }
+    ]
+}

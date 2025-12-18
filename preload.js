@@ -104,6 +104,17 @@ contextBridge.exposeInMainWorld('api', {
     getProviders: () => ipcRenderer.invoke('ai:getProviders')
   },
 
+  // --- Habits ---
+  habits: {
+    load: () => ipcRenderer.invoke('habits:load'),
+    add: (habitData) => ipcRenderer.invoke('habits:add', habitData),
+    delete: (habitId) => ipcRenderer.invoke('habits:delete', habitId),
+    toggle: (habitId, date) => ipcRenderer.invoke('habits:toggle', habitId, date),
+    getStats: () => ipcRenderer.invoke('habits:get-stats'),
+    getHeatmap: () => ipcRenderer.invoke('habits:get-heatmap'),
+    getForDate: (date) => ipcRenderer.invoke('habits:get-for-date', date)
+  },
+
   // --- Auto-Update ---
   autoUpdate: {
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
@@ -115,5 +126,16 @@ contextBridge.exposeInMainWorld('api', {
     onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
     onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, progress) => callback(progress)),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info))
-  }
+  },
+
+  // --- Changelog ---
+  changelog: {
+    getChangelog: () => ipcRenderer.invoke('get-changelog'),
+    getLastSeenVersion: () => ipcRenderer.invoke('get-last-seen-version'),
+    setLastSeenVersion: (version) => ipcRenderer.invoke('set-last-seen-version', version)
+  },
+
+  // --- App Management ---
+  resetApp: () => ipcRenderer.invoke('reset-app'),
+  testFirstSetup: () => ipcRenderer.invoke('test-first-setup')
 });

@@ -10,6 +10,7 @@ const setupWebdav = require('./internal/webdav');
 const setupGdrive = require('./internal/gdrive');
 const setupCalendar = require('./internal/calendar');
 const setupAi = require('./internal/ai');
+const habitsService = require('./internal/habits');
 
 // --- Chemins de sauvegarde ---
 const userDataPath = app.getPath('userData');
@@ -101,6 +102,10 @@ app.whenReady().then(() => {
     {
       name: "Calendrier",
       url: "internal://calendar"
+    },
+    {
+      name: "Habitudes",
+      url: "internal://habits"
     },
     {
       name: "Fichiers WebDAV",
@@ -230,6 +235,186 @@ app.whenReady().then(() => {
   ipcMain.handle('open-release-page', () => {
     shell.openExternal('https://github.com/gltdevlop/Nexus-App/releases/latest');
   });
+
+  // --- Changelog IPC Handlers ---
+  const lastSeenVersionPath = path.join(userDataPath, 'lastSeenVersion.json');
+
+  ipcMain.handle('get-changelog', async () => {
+    try {
+      const changelogPath = path.join(__dirname, 'CHANGELOG.json');
+      if (!fs.existsSync(changelogPath)) {
+        return { success: false, error: 'Changelog file not found' };
+      }
+      const data = fs.readFileSync(changelogPath, 'utf8');
+      const changelog = JSON.parse(data);
+      return { success: true, changelog };
+    } catch (error) {
+      console.error('Error reading changelog:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('get-last-seen-version', async () => {
+    try {
+      if (!fs.existsSync(lastSeenVersionPath)) {
+        return { success: true, version: null };
+      }
+      const data = fs.readFileSync(lastSeenVersionPath, 'utf8');
+      const { version } = JSON.parse(data);
+      return { success: true, version };
+    } catch (error) {
+      console.error('Error reading last seen version:', error);
+      return { success: true, version: null };
+    }
+  });
+
+  ipcMain.handle('set-last-seen-version', async (event, version) => {
+    try {
+      fs.writeFileSync(lastSeenVersionPath, JSON.stringify({ version, date: new Date().toISOString() }, null, 2));
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving last seen version:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // --- App Reset Handler ---
+  ipcMain.handle('reset-app', async () => {
+    try {
+      console.log('Resetting application...');
+
+      // List of files to delete
+      const filesToDelete = [
+        servicesFilePath,
+        firstUseFilePath,
+        lastSeenVersionPath,
+        path.join(userDataPath, 'ai-config.json'),
+        path.join(userDataPath, 'webdav-config.json'),
+        path.join(userDataPath, 'gdrive-config.json'),
+        path.join(userDataPath, 'gdrive-tokens.json'),
+        path.join(userDataPath, 'gcal-config.json'),
+        path.join(userDataPath, 'gcal-tokens.json'),
+        path.join(userDataPath, 'todos.json'),
+        path.join(userDataPath, 'calendar-events.json'),
+        path.join(userDataPath, 'habits.json')
+      ];
+
+      // Delete each file if it exists
+      let deletedCount = 0;
+      for (const filePath of filesToDelete) {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+          console.log(`Deleted: ${path.basename(filePath)}`);
+        }
+      }
+
+      console.log(`Reset complete. Deleted ${deletedCount} files.`);
+
+      // Restart the application
+      setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 1500);
+
+      return { success: true, deletedFiles: deletedCount };
+    } catch (error) {
+      console.error('Error resetting app:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // --- Test First Setup Handler ---
+  ipcMain.handle('test-first-setup', async () => {
+    try {
+      // Delete the firstUse file to trigger onboarding
+      if (fs.existsSync(firstUseFilePath)) {
+        fs.unlinkSync(firstUseFilePath);
+        console.log('Deleted firstUse.json - onboarding will show on next restart');
+      }
+
+      // Restart the application
+      setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 500);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error triggering first setup:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // --- Habits IPC Handlers ---
+  ipcMain.handle('habits:load', async () => {
+    try {
+      return { success: true, habits: habitsService.getHabits() };
+    } catch (error) {
+      console.error('Error loading habits:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:add', async (event, habitData) => {
+    try {
+      const habit = habitsService.addHabit(habitData);
+      return { success: true, habit };
+    } catch (error) {
+      console.error('Error adding habit:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:delete', async (event, habitId) => {
+    try {
+      habitsService.deleteHabit(habitId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting habit:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:toggle', async (event, habitId, date) => {
+    try {
+      const habit = habitsService.toggleHabitCompletion(habitId, date);
+      return { success: true, habit };
+    } catch (error) {
+      console.error('Error toggling habit:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:get-stats', async () => {
+    try {
+      const stats = habitsService.getStats();
+      return { success: true, stats };
+    } catch (error) {
+      console.error('Error getting stats:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:get-heatmap', async () => {
+    try {
+      const heatmap = habitsService.getHeatmapData();
+      return { success: true, heatmap };
+    } catch (error) {
+      console.error('Error getting heatmap:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('habits:get-for-date', async (event, date) => {
+    try {
+      const habits = habitsService.getHabitsForDate(date);
+      return { success: true, habits };
+    } catch (error) {
+      console.error('Error getting habits for date:', error);
+      return { success: false, error: error.message };
+    }
+  });
 });
 
 function createWindow() {
@@ -265,5 +450,5 @@ function createWindow() {
     });
   }
 
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 }

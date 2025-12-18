@@ -142,4 +142,64 @@ export function initSettings(callbacks) {
             callbacks.onSettingsSaved();
         }
     });
+
+    // Reset App Button
+    const settingsResetAppBtn = document.getElementById('settings-reset-app-btn');
+    const settingsResetStatus = document.getElementById('settings-reset-status');
+
+    if (settingsResetAppBtn) {
+        settingsResetAppBtn.addEventListener('click', async () => {
+            const confirmed = confirm(
+                "⚠️ ATTENTION ⚠️\n\n" +
+                "Êtes-vous sûr de vouloir réinitialiser complètement l'application ?\n\n" +
+                "Cette action supprimera TOUTES vos données :\n" +
+                "• Tous les services configurés\n" +
+                "• Les connexions WebDAV et Google Drive\n" +
+                "• Les événements du calendrier\n" +
+                "• Toutes les tâches ToDo\n" +
+                "• Les habitudes et leur historique\n" +
+                "• Tous les réglages\n\n" +
+                "L'application redémarrera après la réinitialisation.\n\n" +
+                "Cette action est IRRÉVERSIBLE !"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            // Double confirmation
+            const doubleConfirm = confirm(
+                "Dernière confirmation :\n\n" +
+                "Voulez-vous vraiment réinitialiser l'application ?\n\n" +
+                "Cliquez sur OK pour confirmer la réinitialisation."
+            );
+
+            if (!doubleConfirm) {
+                return;
+            }
+
+            settingsResetStatus.textContent = "Réinitialisation en cours...";
+            settingsResetStatus.style.color = "#ffc107";
+
+            try {
+                const result = await window.api.resetApp();
+
+                if (result.success) {
+                    settingsResetStatus.textContent = "✅ Application réinitialisée ! Redémarrage...";
+                    settingsResetStatus.style.color = "#34c759";
+
+                    // Close modal and wait a bit before restart
+                    setTimeout(() => {
+                        settingsModal.style.display = 'none';
+                    }, 1000);
+                } else {
+                    settingsResetStatus.textContent = "❌ Erreur: " + (result.error || "Échec de la réinitialisation");
+                    settingsResetStatus.style.color = "#ff3b30";
+                }
+            } catch (error) {
+                settingsResetStatus.textContent = "❌ Erreur: " + error.message;
+                settingsResetStatus.style.color = "#ff3b30";
+            }
+        });
+    }
 }

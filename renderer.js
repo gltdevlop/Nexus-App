@@ -1029,6 +1029,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const dashboardContainer = document.getElementById('dashboard-container');
     const filesAppContainer = document.getElementById('files-app-container');
     const calendarAppContainer = document.getElementById('calendar-app-container');
+    const habitsAppContainer = document.getElementById('habits-app-container');
 
     // Éléments de la modale d'ajout de service
     const modal = document.getElementById('add-service-modal');
@@ -1047,6 +1048,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (internalSelect.value === 'internal://dashboard') nameInput.value = "Dashboard";
                 else if (internalSelect.value === 'internal://todo') nameInput.value = "ToDo List";
                 else if (internalSelect.value === 'internal://calendar') nameInput.value = "Calendrier";
+                else if (internalSelect.value === 'internal://habits') nameInput.value = "Habitudes";
                 else if (internalSelect.value === 'internal://files') nameInput.value = "Fichiers WebDAV";
                 else if (internalSelect.value === 'internal://gdrive') nameInput.value = "Fichiers GDrive";
                 else if (internalSelect.value === 'internal://ai') nameInput.value = "IA";
@@ -1503,6 +1505,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (serviceUrl === 'internal://dashboard') return '📊';
         if (serviceUrl === 'internal://todo') return '✓';
         if (serviceUrl === 'internal://calendar') return '📅';
+        if (serviceUrl === 'internal://habits') return '🔥';
         if (serviceUrl === 'internal://files') return '📁';
         if (serviceUrl === 'internal://gdrive') return '☁️';
         if (serviceUrl === 'internal://ai') return '🤖';
@@ -1646,6 +1649,7 @@ window.addEventListener('DOMContentLoaded', () => {
         dashboardContainer.style.display = 'none';
         filesAppContainer.style.display = 'none';
         calendarAppContainer.style.display = 'none';
+        habitsAppContainer.style.display = 'none';
 
         if (serviceUrl === 'internal://dashboard') {
             dashboardContainer.style.display = 'flex';
@@ -1656,6 +1660,11 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (serviceUrl === 'internal://calendar') {
             calendarAppContainer.style.display = 'flex';
             initCalendarApp(calendarAppContainer);
+        } else if (serviceUrl === 'internal://habits') {
+            habitsAppContainer.style.display = 'flex';
+            if (window.HabitsApp && window.HabitsApp.init) {
+                window.HabitsApp.init();
+            }
         } else if (serviceUrl === 'internal://files') {
             filesAppContainer.style.display = 'flex';
             initFilesApp(filesAppContainer, 'webdav');
