@@ -24,6 +24,12 @@ let mainWindow;
 autoUpdater.autoDownload = false; // Don't auto-download, ask user first
 autoUpdater.autoInstallOnAppQuit = true;
 
+// Fix for unsigned apps on Windows: Disable signature verification
+// (Note: This is less secure but necessary for personal apps without a certificate)
+if (process.platform === 'win32') {
+  autoUpdater.verifyUpdateCodeSignature = false;
+}
+
 // Auto-updater event handlers
 autoUpdater.on('checking-for-update', () => {
   console.log('Checking for updates...');
