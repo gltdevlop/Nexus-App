@@ -29,15 +29,8 @@
         // Listen for update errors
         window.api.autoUpdate.onUpdateError((error) => {
             console.error('Update error:', error);
-
-            // If error contains "portable" or specific error codes, show manual download
-            if (error.includes('portable') || error.includes('ENOENT') || error.includes('update.yml')) {
-                isPortable = true;
-                showManualDownloadOption();
-            } else {
-                hideUpdateModal();
-                // Optionally show error notification
-            }
+            // Fallback to manual download for any error to ensure user can update
+            showManualDownloadOption(error);
         });
 
         // Setup button handlers
@@ -219,7 +212,7 @@
         if (progressText) progressText.textContent = 'Téléchargement terminé ! Prêt à installer.';
     }
 
-    function showManualDownloadOption() {
+    function showManualDownloadOption(errorMsg) {
         const downloadBtn = document.getElementById('update-download-btn');
         const manualBtn = document.getElementById('update-manual-btn');
         const versionText = document.getElementById('update-version-text');
@@ -230,7 +223,8 @@
         if (progressContainer) progressContainer.style.display = 'none';
 
         if (versionText && updateInfo) {
-            versionText.textContent = `Une nouvelle version ${updateInfo.version} est disponible ! (Version portable - téléchargement manuel requis)`;
+            versionText.textContent = `Une nouvelle version ${updateInfo.version} est disponible ! (Téléchargement manuel requis)`;
+            if (errorMsg) console.log("Showing manual option due to:", errorMsg);
         }
     }
 
@@ -251,11 +245,8 @@
                 const result = await window.api.autoUpdate.downloadUpdate();
                 if (!result.success) {
                     console.error('Failed to start download:', result.error);
-                    // Check if it's a portable version
-                    if (result.error && (result.error.includes('portable') || result.error.includes('update.yml'))) {
-                        isPortable = true;
-                        showManualDownloadOption();
-                    }
+                    // Fallback to manual download for any error
+                    showManualDownloadOption(result.error);
                 }
             });
         }
