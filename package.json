@@ -34,7 +34,8 @@
       {
         "provider": "github",
         "owner": "gltdevlop",
-        "repo": "Nexus-App"
+        "repo": "Nexus-App",
+        "timeout": 0
       }
     ],
     "directories": {
