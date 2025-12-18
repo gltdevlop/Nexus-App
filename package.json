@@ -41,7 +41,6 @@
     "directories": {
       "output": "dist"
     },
-    "artifactName": "${name}-${version}.${ext}",
     "files": [
       "**/*",
       "!**/*.md",
@@ -90,7 +89,11 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "Nexus-App-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Nexus-App-${version}.${ext}"
     }
   }
 }
