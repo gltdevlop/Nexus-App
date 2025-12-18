@@ -3,9 +3,14 @@
         {
             "version": "1.2.4",
             "date": "2025-12-18",
-            "features": [],
+            "features": [
+                "Ajout d'un bouton de suppression sur les cartes d'événements dans la vue détaillée",
+                "Gestion améliorée des couleurs Google Agenda"
+            ],
             "improvements": [
-                "Amélioration de la gestion des builds macOS (séparation x64/arm64)"
+                "Amélioration de la gestion des builds macOS (séparation x64/arm64)",
+                "Synchronisation automatique de la barre latérale après modification des données",
+                "Optimisation de la sélection par défaut des calendriers"
             ],
             "fixes": []
         },
