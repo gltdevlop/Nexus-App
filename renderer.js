@@ -79,6 +79,67 @@ window.addEventListener('DOMContentLoaded', () => {
     let dragStartY = 0;
     let selectionBox = null;
 
+    // --- UPLOAD PROGRESS HANDLING ---
+    window.api.onUploadProgress && window.api.onUploadProgress((data) => {
+        const { filename, progress } = data;
+        const grid = document.getElementById('files-grid');
+        const listContent = document.getElementById('files-list-content');
+
+        // Determine which view/container to update
+        const isGridView = currentViewMode === 'grid';
+        const container = isGridView ? grid : listContent;
+        if (!container) return; // files app not ready?
+
+        // Find existing item by filename (check data-filename attribute or ID)
+        // We'll use a sanitized ID for the progress element
+        const safeId = 'upload-' + filename.replace(/[^a-zA-Z0-9]/g, '-');
+        let item = document.getElementById(safeId);
+
+        if (!item) {
+            // Create placeholder
+            if (isGridView) {
+                item = document.createElement('div');
+                item.className = 'file-item uploading';
+                item.id = safeId;
+                item.innerHTML = `
+                <div class="file-icon">📄</div>
+                <div class="file-name">${filename}</div>
+                <div class="upload-progress-container">
+                    <div class="upload-progress-bar" style="width: 0%"></div>
+                </div>
+            `;
+                if (grid.firstChild) {
+                    grid.insertBefore(item, grid.firstChild);
+                } else {
+                    grid.appendChild(item);
+                }
+            } else {
+                item = document.createElement('div');
+                item.className = 'file-list-item uploading';
+                item.id = safeId;
+                item.innerHTML = `
+                <div class="file-list-icon">📄</div>
+                <div class="file-list-name">${filename}</div>
+                <div class="upload-progress-container">
+                    <div class="upload-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="file-list-date">Envoi...</div>
+            `;
+                if (listContent.firstChild) {
+                    listContent.insertBefore(item, listContent.firstChild);
+                } else {
+                    listContent.appendChild(item);
+                }
+            }
+        }
+
+        // Update progress
+        const bar = item.querySelector('.upload-progress-bar');
+        if (bar) {
+            bar.style.width = `${progress}%`;
+        }
+    });
+
     // --- KEYBOARD SHORTCUTS ---
     document.addEventListener('keydown', (e) => {
         // Don't intercept keyboard shortcuts when typing in input or textarea fields
@@ -91,6 +152,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (isModalOpen) {
             return;
         }
+
+
 
         // Only handle keyboard shortcuts when files app is visible
         const filesAppVisible = filesAppContainer.style.display === 'flex';
@@ -236,7 +299,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     } else {
                         alert("Création de dossier non supportée pour ce service.");
                     }
-                    loadFiles(currentPath, container, provider);
+                    loadFiles(currentPath, container, provider, false, true);
                 } catch (err) {
                     alert("Erreur: " + err.message);
                     console.error(err);
@@ -293,12 +356,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     const result = await window.api[provider].rename(oldPath, newPath);
                     if (result && result.error) throw new Error(result.error);
 
-                    loadFiles(currentPath, container);
+                    loadFiles(currentPath, container, provider, false, true);
                 } catch (e) {
                     alert("Erreur lors du renommage: " + (e.message || e));
                     console.error(e);
                     // Reload to restore view
-                    loadFiles(currentPath, document.getElementById('files-app-container'));
+                    loadFiles(currentPath, container, provider, false, true);
                 }
             }
         }
@@ -326,7 +389,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (result && result.error) throw new Error(result.error);
 
                     // Refresh
-                    loadFiles(currentPath, container, provider);
+                    loadFiles(currentPath, container, provider, false, true);
                 } catch (e) {
                     alert("Erreur lors de la suppression: " + (e.message || e));
                     console.error(e);
@@ -421,11 +484,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Clear selection and refresh
             clearSelection();
-            loadFiles(currentPath, container, destProvider);
+            loadFiles(currentPath, container, destProvider, false, true);
         } catch (e) {
             alert("Erreur lors du collage: " + (e.message || e));
             console.error(e);
-            loadFiles(currentPath, container, destProvider);
+            loadFiles(currentPath, container, destProvider, false, true);
         }
     });
 
@@ -468,7 +531,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 // Clear selection and refresh
                 clearSelection();
-                loadFiles(currentPath, container, provider);
+                loadFiles(currentPath, container, provider, false, true);
             } catch (e) {
                 alert("Erreur lors de la suppression: " + (e.message || e));
             }
@@ -574,9 +637,174 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Upload progress tracking
+    const uploadingFiles = new Map(); // filename -> { element, progress }
+
+    function createUploadPlaceholder(filename, viewMode = 'grid') {
+        const el = document.createElement('div');
+
+        if (viewMode === 'grid') {
+            el.className = 'file-item uploading';
+            el.innerHTML = `
+                <div class="file-icon">📄</div>
+                <div class="file-name">${filename}</div>
+                <div class="upload-progress-bar">
+                    <div class="upload-progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="file-meta upload-percentage">0%</div>
+            `;
+        } else {
+            el.className = 'file-list-item uploading';
+            el.innerHTML = `
+                <div class="file-list-icon">📄</div>
+                <div class="file-list-name">${filename}</div>
+                <div class="file-list-size">
+                    <div class="upload-progress-bar">
+                        <div class="upload-progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="file-list-date upload-percentage">0%</div>
+            `;
+        }
+
+        return el;
+    }
+
+    function updateUploadProgress(filename, progress) {
+        let uploadInfo = uploadingFiles.get(filename);
+
+        // If no placeholder exists, create it (for button uploads where we can't create upfront)
+        if (!uploadInfo) {
+            const filesContainer = document.getElementById('files-app-container');
+            if (filesContainer && filesContainer.style.display !== 'none') {
+                // Only create if not already in the map (avoid race conditions)
+                if (!uploadingFiles.has(filename)) {
+                    addUploadPlaceholder(filename, filesContainer, currentViewMode);
+                    uploadInfo = uploadingFiles.get(filename);
+                }
+            }
+        }
+
+        if (!uploadInfo) {
+            console.warn(`No placeholder found for ${filename}`);
+            return;
+        }
+
+        const progressFill = uploadInfo.element.querySelector('.upload-progress-fill');
+        if (progressFill) {
+            progressFill.style.width = `${progress}%`;
+        }
+
+        // Update percentage text
+        const percentageEl = uploadInfo.element.querySelector('.upload-percentage');
+        if (percentageEl) {
+            percentageEl.textContent = `${progress}%`;
+        }
+
+        // Update progress info
+        uploadInfo.progress = progress;
+
+        // If complete, mark for removal
+        if (progress >= 100) {
+            setTimeout(() => {
+                if (uploadingFiles.has(filename)) {
+                    const info = uploadingFiles.get(filename);
+                    if (info.element && info.element.parentNode) {
+                        info.element.remove();
+                    }
+                    uploadingFiles.delete(filename);
+                }
+            }, 500); // Short delay before removing
+        }
+    }
+
+    function addUploadPlaceholder(filename, container, viewMode = 'grid') {
+        // Check if placeholder already exists to avoid duplicates
+        if (uploadingFiles.has(filename)) {
+            return uploadingFiles.get(filename).element;
+        }
+
+        const placeholder = createUploadPlaceholder(filename, viewMode);
+
+        if (viewMode === 'grid') {
+            const grid = container.querySelector('#files-grid');
+            if (grid) {
+                grid.insertBefore(placeholder, grid.firstChild);
+            }
+        } else {
+            const listContent = container.querySelector('#files-list-content');
+            if (listContent) {
+                listContent.insertBefore(placeholder, listContent.firstChild);
+            }
+        }
+
+        uploadingFiles.set(filename, {
+            element: placeholder,
+            progress: 0
+        });
+
+        return placeholder;
+    }
+
+    // Download progress tracking
+    function updateDownloadProgress(filename, progress, downloadedBytes, totalBytes) {
+        const container = document.getElementById('download-progress-container');
+        const filenameEl = document.getElementById('download-filename');
+        const percentageEl = document.getElementById('download-percentage');
+        const fillEl = document.getElementById('download-progress-fill');
+        const sizeInfoEl = document.getElementById('download-size-info');
+
+        if (!container) return;
+
+        // Show the progress bar
+        container.style.display = 'block';
+
+        // Update filename
+        if (filenameEl) {
+            filenameEl.textContent = `Téléchargement: ${filename}`;
+        }
+
+        // Update percentage
+        if (percentageEl) {
+            percentageEl.textContent = `${progress}%`;
+        }
+
+        // Update progress bar
+        if (fillEl) {
+            fillEl.style.width = `${progress}%`;
+        }
+
+        // Update size info
+        if (sizeInfoEl && totalBytes > 0) {
+            const downloadedMB = (downloadedBytes / (1024 * 1024)).toFixed(2);
+            const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+            sizeInfoEl.textContent = `${downloadedMB} MB / ${totalMB} MB`;
+        }
+
+        // Hide when complete
+        if (progress >= 100) {
+            setTimeout(() => {
+                container.style.display = 'none';
+            }, 1500); // Show completion for 1.5s
+        }
+    }
+
+
     async function initFilesApp(container, providerName) {
         // Always re-check config incase it changed, but we can keep DOM structure if init
         if (!filesAppInitialized) {
+            // Set up upload progress listener (only once)
+            window.api.onUploadProgress((data) => {
+                const { filename, progress } = data;
+                updateUploadProgress(filename, progress);
+            });
+
+            // Set up download progress listener (only once)
+            window.api.onDownloadProgress((data) => {
+                const { filename, progress, downloadedBytes, totalBytes } = data;
+                updateDownloadProgress(filename, progress, downloadedBytes, totalBytes);
+            });
+
             container.innerHTML = `
                <div id="files-login-view" class="files-auth-container" style="display:none; text-align:center;">
                    <h2>Non configuré</h2>
@@ -584,6 +812,17 @@ window.addEventListener('DOMContentLoaded', () => {
                    <button id="open-settings-from-files">Ouvrir les Réglages</button>
                </div>
                <div id="files-main-view" class="files-app-container" style="display:none;">
+                   <!-- Download Progress Bar (fixed at top) -->
+                   <div id="download-progress-container" class="download-progress-container" style="display:none;">
+                       <div class="download-progress-info">
+                           <span id="download-filename">Téléchargement...</span>
+                           <span id="download-percentage">0%</span>
+                       </div>
+                       <div class="download-progress-bar">
+                           <div id="download-progress-fill" class="download-progress-fill" style="width: 0%"></div>
+                       </div>
+                       <div id="download-size-info" class="download-size-info">0 MB / 0 MB</div>
+                   </div>
                    <div class="files-toolbar">
                        <div class="nav-buttons">
                            <button id="files-back-btn" title="Précédent (Alt+←)">←</button>
@@ -672,7 +911,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             container.querySelector('#files-refresh-btn').addEventListener('click', () => {
                 const p = container.dataset.provider;
-                loadFiles(currentPath, container, p);
+                loadFiles(currentPath, container, p, false, true);
             });
             container.querySelector('#files-home-btn').addEventListener('click', () => {
                 const p = container.dataset.provider;
@@ -681,8 +920,16 @@ window.addEventListener('DOMContentLoaded', () => {
             });
             container.querySelector('#files-upload-btn').addEventListener('click', async () => {
                 const p = container.dataset.provider;
-                await window.api[p].uploadFile(currentPath);
-                loadFiles(currentPath, container, p);
+
+                // Upload (dialog handled by backend)
+                const result = await window.api[p].uploadFile(currentPath);
+
+                // Refresh after upload completes
+                if (result && result.success) {
+                    setTimeout(() => {
+                        loadFiles(currentPath, container, p, false, true);
+                    }, 600);
+                }
             });
             container.querySelector('#files-upload-folder-btn').addEventListener('click', async () => {
                 const p = container.dataset.provider;
@@ -691,7 +938,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     alert("Pas encore supporté pour ce service");
                 }
-                loadFiles(currentPath, container, p);
+                loadFiles(currentPath, container, p, false, true);
             });
 
             // Navigation buttons
@@ -997,16 +1244,38 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
 
                     try {
-                        const grid = container.querySelector('#files-grid');
-                        grid.innerHTML = '<div class="files-loading">Téléversement en cours...</div>';
+                        // Create placeholders for each file immediately
+                        const filenames = paths.map(p => {
+                            const parts = p.split(/[/\\]/);
+                            return parts[parts.length - 1];
+                        });
 
-                        const result = await window.api.webdav.uploadPaths(currentPath, paths);
+                        filenames.forEach(filename => {
+                            addUploadPlaceholder(filename, container, currentViewMode);
+                        });
+
+                        const provider = container.dataset.provider;
+                        const result = await window.api[provider].uploadPaths(currentPath, paths);
+
                         if (!result || !result.success) throw new Error(result ? result.error : "Erreur inconnue");
 
-                        loadFiles(currentPath, container);
+                        // Wait for placeholders to clear, then refresh
+                        setTimeout(() => {
+                            loadFiles(currentPath, container, provider, false, true);
+                        }, 600);
                     } catch (e) {
+                        const provider = container.dataset.provider;
                         alert("Erreur lors du téléversement: " + (e.message || e));
-                        loadFiles(currentPath, container);
+
+                        // Clear any remaining placeholders
+                        uploadingFiles.forEach((info, filename) => {
+                            if (info.element && info.element.parentNode) {
+                                info.element.remove();
+                            }
+                        });
+                        uploadingFiles.clear();
+
+                        loadFiles(currentPath, container, provider, false, true);
                     }
                 }
             });
@@ -1725,9 +1994,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadFiles(path, container, providerName, addToHistory = true) {
+    async function loadFiles(path, container, providerName, addToHistory = true, forceReload = false) {
         if (!providerName) providerName = container.dataset.provider;
         currentPath = path;
+
+        // Invalidate cache if forced
+        if (forceReload) {
+            const cacheKey = `${providerName}:${path}`;
+            if (fileListingCache.delete) {
+                fileListingCache.delete(cacheKey);
+            }
+        }
 
         // Manage navigation history
         if (addToHistory) {
@@ -1774,7 +2051,22 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
 
-        grid.innerHTML = '<div class="files-loading">Chargement...</div>';
+        // Show loading state
+        const loadingHtml = '<div class="files-loading"><div class="spinner"></div><div>Chargement...</div></div>';
+        const listContent = container.querySelector('#files-list-content');
+
+        if (currentViewMode === 'grid') {
+            grid.innerHTML = loadingHtml;
+            grid.style.display = 'grid'; // Ensure grid is visible if it was hidden
+            if (container.querySelector('#files-list')) container.querySelector('#files-list').style.display = 'none';
+        } else {
+            if (listContent) {
+                listContent.innerHTML = loadingHtml;
+                // Ensure list container is visible
+                if (container.querySelector('#files-list')) container.querySelector('#files-list').style.display = 'flex';
+                grid.style.display = 'none';
+            }
+        }
 
         try {
             const api = window.api[providerName];

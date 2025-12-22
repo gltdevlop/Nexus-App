@@ -171,6 +171,14 @@
         }
 
         /**
+         * Delete a specific key from cache
+         * @param {string} key - Cache key
+         */
+        delete(key) {
+            this.cache.delete(key);
+        }
+
+        /**
          * Clear all cached items
          */
         clear() {

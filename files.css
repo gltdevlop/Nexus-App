@@ -425,7 +425,22 @@
     height: 100%;
     font-size: 1.2em;
     color: var(--text-secondary);
-    gap: 10px;
+    gap: 15px;
+}
+
+.files-loading .spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Drag Selection Rectangle */
@@ -533,6 +548,95 @@
     display: flex;
 }
 
-.files-app-container.grid-view .files-list {
-    display: none;
+/* Uploading Item Styles */
+.file-item.uploading,
+.file-list-item.uploading {
+    opacity: 0.6;
+    pointer-events: none;
+    /* Prevent interaction */
+}
+
+.file-item.uploading .file-icon,
+.file-list-item.uploading .file-list-icon {
+    filter: grayscale(100%);
+}
+
+.upload-progress-bar {
+    width: 80%;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    margin-top: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+/* Progress bar in list view */
+.file-list-item .upload-progress-bar {
+    width: 100%;
+    height: 4px;
+    margin-top: 0;
+}
+
+.file-list-item .file-list-size .upload-progress-bar {
+    width: 100%;
+    margin: 0;
+}
+
+/* Download Progress Bar (fixed at top of files view) */
+.download-progress-container {
+    background: var(--surface-dark);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+.download-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.download-progress-info #download-filename {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.download-progress-info #download-percentage {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.download-progress-container .download-progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.download-progress-container .download-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #34A853, #4CAF50);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.download-size-info {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: right;
 }

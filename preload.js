@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('api', {
     open: (path) => ipcRenderer.invoke('gdrive-open', path),
     download: (path) => ipcRenderer.invoke('gdrive-download', path),
     uploadFile: (path) => ipcRenderer.invoke('gdrive-upload-file', path),
+    uploadPaths: (remoteDir, paths) => ipcRenderer.invoke('gdrive-upload-paths', { remoteDir, localPaths: paths }),
     delete: (path) => ipcRenderer.invoke('gdrive-delete', path),
     rename: (oldPath, newPath) => ipcRenderer.invoke('gdrive-rename', { oldPath, newPath }),
     mkdir: (path) => ipcRenderer.invoke('gdrive-mkdir', path),
@@ -137,5 +138,9 @@ contextBridge.exposeInMainWorld('api', {
 
   // --- App Management ---
   resetApp: () => ipcRenderer.invoke('reset-app'),
-  testFirstSetup: () => ipcRenderer.invoke('test-first-setup')
+  testFirstSetup: () => ipcRenderer.invoke('test-first-setup'),
+
+  // --- Events ---
+  onUploadProgress: (callback) => ipcRenderer.on('upload-progress', (event, data) => callback(data)),
+  onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, data) => callback(data))
 });

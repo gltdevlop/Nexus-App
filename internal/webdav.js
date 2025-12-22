@@ -90,8 +90,47 @@ module.exports = function (ipcMain, userDataPath) {
             });
 
             if (filePath) {
-                const buffer = await client.getFileContents(remotePath);
-                fs.writeFileSync(filePath, buffer);
+                // Get file info to know the size
+                const items = await client.getDirectoryContents(path.dirname(remotePath));
+                const fileInfo = items.find(item => item.filename === remotePath);
+                const fileSize = fileInfo ? fileInfo.size : 0;
+
+                let downloadedBytes = 0;
+
+                // Get file as stream
+                const stream = client.createReadStream(remotePath);
+                const writeStream = fs.createWriteStream(filePath);
+
+                // Track download progress
+                stream.on('data', (chunk) => {
+                    downloadedBytes += chunk.length;
+                    if (fileSize > 0) {
+                        const progress = Math.round((downloadedBytes / fileSize) * 100);
+                        event.sender.send('download-progress', {
+                            filename: fileName,
+                            progress,
+                            downloadedBytes,
+                            totalBytes: fileSize
+                        });
+                    }
+                });
+
+                // Pipe to file
+                await new Promise((resolve, reject) => {
+                    stream.pipe(writeStream);
+                    writeStream.on('finish', resolve);
+                    writeStream.on('error', reject);
+                    stream.on('error', reject);
+                });
+
+                // Send 100% completion
+                event.sender.send('download-progress', {
+                    filename: fileName,
+                    progress: 100,
+                    downloadedBytes: fileSize,
+                    totalBytes: fileSize
+                });
+
                 return { success: true };
             }
             return { success: false, canceled: true };
@@ -141,12 +180,46 @@ module.exports = function (ipcMain, userDataPath) {
             try {
                 for (const localPath of filePaths) {
                     const filename = path.basename(localPath);
-                    const remotePath = path.posix.join(remoteDir, filename); // WebDAV always posix
-                    const data = fs.readFileSync(localPath);
-                    await client.putFileContents(remotePath, data);
+                    const remotePath = path.posix.join(remoteDir, filename);
+
+                    // Get file size for progress tracking
+                    const stat = fs.statSync(localPath);
+                    const fileSize = stat.size;
+                    let uploadedBytes = 0;
+
+                    // Create read stream
+                    const fileStream = fs.createReadStream(localPath);
+
+                    // Create write stream to WebDAV (true streaming!)
+                    const writeStream = client.createWriteStream(remotePath);
+
+                    // Track progress by monitoring the read stream
+                    fileStream.on('data', (chunk) => {
+                        uploadedBytes += chunk.length;
+                        const progress = Math.round((uploadedBytes / fileSize) * 100);
+                        event.sender.send('upload-progress', {
+                            filename: filename,
+                            progress
+                        });
+                    });
+
+                    // Pipe the file stream to WebDAV write stream
+                    await new Promise((resolve, reject) => {
+                        fileStream.pipe(writeStream);
+                        writeStream.on('finish', resolve);
+                        writeStream.on('error', reject);
+                        fileStream.on('error', reject);
+                    });
+
+                    // Ensure 100% is sent
+                    event.sender.send('upload-progress', {
+                        filename: filename,
+                        progress: 100
+                    });
                 }
                 return { success: true };
             } catch (e) {
+                console.error("WebDAV Upload Error:", e);
                 return { success: false, error: e.message };
             }
         }
@@ -218,12 +291,44 @@ module.exports = function (ipcMain, userDataPath) {
                 if (stat.isDirectory()) {
                     await uploadDirectoryRecursive(client, localPath, remotePath);
                 } else {
-                    const data = fs.readFileSync(localPath);
-                    await client.putFileContents(remotePath, data);
+                    // Upload file with progress tracking
+                    const fileSize = stat.size;
+                    let uploadedBytes = 0;
+
+                    // Create read stream
+                    const fileStream = fs.createReadStream(localPath);
+
+                    // Create write stream to WebDAV (true streaming!)
+                    const writeStream = client.createWriteStream(remotePath);
+
+                    // Track progress
+                    fileStream.on('data', (chunk) => {
+                        uploadedBytes += chunk.length;
+                        const progress = Math.round((uploadedBytes / fileSize) * 100);
+                        event.sender.send('upload-progress', {
+                            filename: basename,
+                            progress
+                        });
+                    });
+
+                    // Pipe the file stream to WebDAV write stream
+                    await new Promise((resolve, reject) => {
+                        fileStream.pipe(writeStream);
+                        writeStream.on('finish', resolve);
+                        writeStream.on('error', reject);
+                        fileStream.on('error', reject);
+                    });
+
+                    // Ensure 100% is sent
+                    event.sender.send('upload-progress', {
+                        filename: basename,
+                        progress: 100
+                    });
                 }
             }
             return { success: true };
         } catch (e) {
+            console.error("WebDAV Upload Paths Error:", e);
             return { success: false, error: e.message };
         }
     });
