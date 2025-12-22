@@ -307,15 +307,23 @@
         const li = document.createElement('li');
         li.className = 'dashboard-event-item';
 
+        // Check if event is all-day
+        const isAllDay = !event.start.includes('T') || event.start.endsWith('T00:00:00');
+
         // Format time
-        const startTime = new Date(event.start);
-        const endTime = new Date(event.end);
+        let timeRange;
+        if (isAllDay) {
+            timeRange = 'Journée entière';
+        } else {
+            const startTime = new Date(event.start);
+            const endTime = new Date(event.end);
 
-        const formatTime = (date) => {
-            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        };
+            const formatTime = (date) => {
+                return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            };
 
-        const timeRange = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+            timeRange = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
 
         // Determine source badge
         let sourceBadge = '';

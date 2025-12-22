@@ -2695,15 +2695,23 @@ window.addEventListener('DOMContentLoaded', () => {
         const li = document.createElement('li');
         li.className = 'dashboard-event-item';
 
+        // Check if event is all-day
+        const isAllDay = !event.start.includes('T') || event.start.endsWith('T00:00:00');
+
         // Format time
-        const startTime = new Date(event.start);
-        const endTime = new Date(event.end);
+        let timeRange;
+        if (isAllDay) {
+            timeRange = 'Journée entière';
+        } else {
+            const startTime = new Date(event.start);
+            const endTime = new Date(event.end);
 
-        const formatTime = (date) => {
-            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        };
+            const formatTime = (date) => {
+                return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            };
 
-        const timeRange = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+            timeRange = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
 
         // Determine source badge
         let sourceBadge = '';
@@ -2720,15 +2728,15 @@ window.addEventListener('DOMContentLoaded', () => {
         const eventTitle = event.title || event.summary || '(Sans titre)';
 
         li.innerHTML = `
-            <div class="event-time-indicator">
-                <span class="event-time-icon">🕐</span>
-                <span class="event-time">${timeRange}</span>
-            </div>
-            <div class="event-info-container">
-                <span class="event-title">${eventTitle}</span>
-                <span class="event-source-badge ${badgeClass}">${sourceBadge}</span>
-            </div>
-        `;
+        <div class="event-time-indicator">
+            <span class="event-time-icon">🕐</span>
+            <span class="event-time">${timeRange}</span>
+        </div>
+        <div class="event-info-container">
+            <span class="event-title">${eventTitle}</span>
+            <span class="event-source-badge ${badgeClass}">${sourceBadge}</span>
+        </div>
+    `;
 
         return li;
     }
