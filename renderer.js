@@ -2316,26 +2316,126 @@ window.addEventListener('DOMContentLoaded', () => {
 
         } catch (e) {
             console.error(e);
+
             // Show more detailed error for GDrive configuration issues
             let errorMsg = "Erreur de chargement.";
-            if (e.message.includes("API has not been used")) {
+            let showReconnectBtn = false;
+            let showResetBtn = false;
+
+            // Check for Google Drive authentication errors
+            if (e.message && (e.message.includes("invalid_grant") || e.message.includes("Token has been expired or revoked"))) {
+                errorMsg = "🔒 Session Google Drive expirée<br><br>Votre authentification Google Drive a expiré ou a été révoquée.<br>Veuillez vous reconnecter pour continuer.";
+                showReconnectBtn = true;
+            } else if (e.message && e.message.includes("API has not been used")) {
                 errorMsg = "L'API Google Drive n'est pas activée dans la console Google Cloud.<br><br>Activez-la et réessayez.";
-            } else if (e.message.includes("Non configuré")) {
+                showResetBtn = true;
+            } else if (e.message && e.message.includes("Non configuré")) {
                 errorMsg = "Service non configuré.";
+                showResetBtn = true;
             } else {
                 errorMsg = e.message || "Erreur inconnue.";
+                showResetBtn = true;
             }
-            grid.innerHTML = `<div class="files-loading" style="color:red; flex-direction:column; padding:20px; text-align:center;">${errorMsg}</div>`;
 
-            // Option to reset config?
-            const resetBtn = document.createElement('button');
-            resetBtn.textContent = "Réinitialiser la configuration";
-            resetBtn.style.marginTop = "10px";
-            resetBtn.onclick = async () => {
-                await window.api.webdav.saveConfig({}); // clear
-                checkFilesConfig(container);
-            };
-            grid.appendChild(resetBtn);
+            // Display error in both grid and list views
+            // Create error container as DOM element instead of HTML string
+            const errorContainer = document.createElement('div');
+            errorContainer.className = 'files-loading';
+            errorContainer.style.color = 'red';
+            errorContainer.style.flexDirection = 'column';
+            errorContainer.style.padding = '20px';
+            errorContainer.style.textAlign = 'center';
+
+            const errorText = document.createElement('div');
+            errorText.innerHTML = errorMsg;
+            errorContainer.appendChild(errorText);
+
+            grid.innerHTML = '';
+            grid.appendChild(errorContainer);
+
+            const listContent = container.querySelector('#files-list-content');
+            let listErrorContainer = null;
+            if (listContent) {
+                listErrorContainer = errorContainer.cloneNode(true);
+                listContent.innerHTML = '';
+                listContent.appendChild(listErrorContainer);
+            }
+
+            // Show reconnect button for authentication errors
+            if (showReconnectBtn && providerName === 'gdrive') {
+                const reconnectBtn = document.createElement('button');
+                reconnectBtn.textContent = "🔄 Se reconnecter à Google Drive";
+                reconnectBtn.style.marginTop = "15px";
+                reconnectBtn.style.padding = "10px 20px";
+                reconnectBtn.style.background = "var(--primary-color)";
+                reconnectBtn.style.color = "white";
+                reconnectBtn.style.border = "none";
+                reconnectBtn.style.borderRadius = "8px";
+                reconnectBtn.style.cursor = "pointer";
+                reconnectBtn.style.fontSize = "14px";
+                reconnectBtn.onclick = async () => {
+                    try {
+                        // Disconnect current session
+                        await window.api.gdrive.disconnect();
+
+                        // Open settings
+                        const settingsBtn = document.getElementById('settings-btn');
+                        if (settingsBtn) {
+                            settingsBtn.click();
+
+                            // Wait for settings modal to open, then navigate to Google Drive section
+                            setTimeout(() => {
+                                const settingsSidebar = document.querySelector('.settings-sidebar');
+                                const settingsSections = document.querySelectorAll('.settings-section');
+
+                                if (settingsSidebar) {
+                                    // Activate Google Drive tab
+                                    settingsSidebar.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+                                    const gdriveTab = settingsSidebar.querySelector('li[data-section="gdrive"]');
+                                    if (gdriveTab) gdriveTab.classList.add('active');
+
+                                    // Show Google Drive section
+                                    settingsSections.forEach(s => s.style.display = 'none');
+                                    const gdriveSection = document.getElementById('settings-section-gdrive');
+                                    if (gdriveSection) gdriveSection.style.display = 'block';
+                                }
+                            }, 200);
+                        }
+                    } catch (error) {
+                        console.error('Error reconnecting:', error);
+                        alert('Erreur lors de la reconnexion. Veuillez ouvrir les paramètres manuellement.');
+                    }
+                };
+                // Add button to grid error container
+                errorContainer.appendChild(reconnectBtn);
+
+                // Add button to list error container
+                if (listErrorContainer) {
+                    const listReconnectBtn = reconnectBtn.cloneNode(true);
+                    listReconnectBtn.onclick = reconnectBtn.onclick;
+                    listErrorContainer.appendChild(listReconnectBtn);
+                }
+            }
+
+            // Show reset button for other configuration errors
+            if (showResetBtn) {
+                const resetBtn = document.createElement('button');
+                resetBtn.textContent = "Réinitialiser la configuration";
+                resetBtn.style.marginTop = "10px";
+                resetBtn.onclick = async () => {
+                    if (providerName === 'gdrive') {
+                        await window.api.gdrive.disconnect();
+                    } else {
+                        await window.api.webdav.saveConfig({});
+                    }
+                    checkFilesConfig(container, providerName);
+                };
+                grid.appendChild(resetBtn);
+                if (listContent) {
+                    listContent.appendChild(resetBtn.cloneNode(true));
+                    listContent.lastChild.onclick = resetBtn.onclick;
+                }
+            }
         }
 
         // Update navigation button states

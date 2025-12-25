@@ -418,14 +418,20 @@
 }
 
 .files-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100%;
     font-size: 1.2em;
     color: var(--text-secondary);
     gap: 15px;
+    padding: 20px;
+    z-index: 10;
 }
 
 .files-loading .spinner {

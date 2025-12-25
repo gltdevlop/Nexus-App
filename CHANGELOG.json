@@ -1,6 +1,26 @@
 {
     "versions": [
         {
+            "version": "1.2.5",
+            "date": "2025-12-25",
+            "features": [
+                "📁 Upload récursif de dossiers : Téléversez des dossiers complets avec toute leur structure sur Google Drive et WebDAV",
+                "📊 Suivi de progression en temps réel : Barres de progression pour les uploads et downloads de fichiers",
+                "📅 Affichage amélioré des événements 'Journée entière' dans le calendrier"
+            ],
+            "improvements": [
+                "Amélioration de l'interface utilisateur pour l'upload de dossiers avec compteur de fichiers",
+                "Optimisation du streaming pour les uploads WebDAV",
+                "Meilleure gestion de la création de répertoires sur WebDAV",
+                "Affichage visuel des fichiers en cours de téléchargement avec icônes et spinners",
+                "Invalidation automatique du cache après les opérations de fichiers"
+            ],
+            "fixes": [
+                "Correction de l'affichage des événements 'Journée entière' qui affichaient '01:00 - 01:00'",
+                "Amélioration de la robustesse des uploads de dossiers"
+            ]
+        },
+        {
             "version": "1.2.4",
             "date": "2025-12-18",
             "features": [

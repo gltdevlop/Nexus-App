@@ -435,6 +435,15 @@ function createWindow() {
     }
   });
 
+  // Disable service workers to prevent database errors
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'serviceWorker') {
+      callback(false);
+    } else {
+      callback(true);
+    }
+  });
+
   // Check if this is the first use
   const isFirstUse = !fs.existsSync(firstUseFilePath);
 
