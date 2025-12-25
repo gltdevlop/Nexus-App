@@ -640,23 +640,32 @@ window.addEventListener('DOMContentLoaded', () => {
     // Upload progress tracking
     const uploadingFiles = new Map(); // filename -> { element, progress }
 
-    function createUploadPlaceholder(filename, viewMode = 'grid') {
+    function createUploadPlaceholder(filename, viewMode = 'grid', isFolder = false) {
         const el = document.createElement('div');
+        // Use Unicode escape for emojis to ensure proper rendering
+        const icon = isFolder ? '\uD83D\uDCC1' : '\uD83D\uDCC4'; // 📁 : 📄
 
         if (viewMode === 'grid') {
             el.className = 'file-item uploading';
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'file-icon';
+            iconDiv.textContent = icon;
+
             el.innerHTML = `
-                <div class="file-icon">📄</div>
                 <div class="file-name">${filename}</div>
                 <div class="upload-progress-bar">
                     <div class="upload-progress-fill" style="width: 0%"></div>
                 </div>
                 <div class="file-meta upload-percentage">0%</div>
             `;
+            el.insertBefore(iconDiv, el.firstChild);
         } else {
             el.className = 'file-list-item uploading';
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'file-list-icon';
+            iconDiv.textContent = icon;
+
             el.innerHTML = `
-                <div class="file-list-icon">📄</div>
                 <div class="file-list-name">${filename}</div>
                 <div class="file-list-size">
                     <div class="upload-progress-bar">
@@ -665,12 +674,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="file-list-date upload-percentage">0%</div>
             `;
+            el.insertBefore(iconDiv, el.firstChild);
         }
 
         return el;
     }
 
-    function updateUploadProgress(filename, progress) {
+    function updateUploadProgress(filename, progress, displayName = null, isFolder = false) {
         let uploadInfo = uploadingFiles.get(filename);
 
         // If no placeholder exists, create it (for button uploads where we can't create upfront)
@@ -679,7 +689,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (filesContainer && filesContainer.style.display !== 'none') {
                 // Only create if not already in the map (avoid race conditions)
                 if (!uploadingFiles.has(filename)) {
-                    addUploadPlaceholder(filename, filesContainer, currentViewMode);
+                    addUploadPlaceholder(filename, filesContainer, currentViewMode, isFolder);
                     uploadInfo = uploadingFiles.get(filename);
                 }
             }
@@ -688,6 +698,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!uploadInfo) {
             console.warn(`No placeholder found for ${filename}`);
             return;
+        }
+
+        // Update display name if provided (for folders with changing file count)
+        if (displayName) {
+            const nameEl = uploadInfo.element.querySelector('.file-name, .file-list-name');
+            if (nameEl) {
+                nameEl.textContent = displayName;
+            }
         }
 
         const progressFill = uploadInfo.element.querySelector('.upload-progress-fill');
@@ -718,13 +736,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addUploadPlaceholder(filename, container, viewMode = 'grid') {
+    function addUploadPlaceholder(filename, container, viewMode = 'grid', isFolder = false) {
         // Check if placeholder already exists to avoid duplicates
         if (uploadingFiles.has(filename)) {
             return uploadingFiles.get(filename).element;
         }
 
-        const placeholder = createUploadPlaceholder(filename, viewMode);
+        const placeholder = createUploadPlaceholder(filename, viewMode, isFolder);
 
         if (viewMode === 'grid') {
             const grid = container.querySelector('#files-grid');
@@ -795,8 +813,16 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!filesAppInitialized) {
             // Set up upload progress listener (only once)
             window.api.onUploadProgress((data) => {
-                const { filename, progress } = data;
-                updateUploadProgress(filename, progress);
+                const { filename, progress, isFolder, current, total } = data;
+
+                // For folders, use stable ID (just folder name) and pass display name separately
+                if (isFolder && current && total) {
+                    const displayName = `${filename} (${current}/${total} fichiers)`;
+                    // Use just the folder name as stable ID
+                    updateUploadProgress(filename, progress, displayName, true);
+                } else {
+                    updateUploadProgress(filename, progress, null, false);
+                }
             });
 
             // Set up download progress listener (only once)

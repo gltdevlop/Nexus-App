@@ -227,14 +227,23 @@ module.exports = function (ipcMain, userDataPath) {
     });
 
     async function uploadDirectoryRecursive(client, localPath, remotePath) {
-        // Ensure remote dir exists
+        console.log(`[WebDAV Upload] Creating directory: ${remotePath}`);
+
+        // Ensure remote dir exists with recursive option
         try {
-            if (await client.exists(remotePath) === false) {
-                await client.createDirectory(remotePath);
+            const exists = await client.exists(remotePath);
+            if (!exists) {
+                console.log(`[WebDAV Upload] Directory doesn't exist, creating: ${remotePath}`);
+                await client.createDirectory(remotePath, { recursive: true });
             }
         } catch (e) {
-            // Ignore error if it means directory already exists or cannot check
-            console.warn("Create directory error (ignored):", e.message);
+            // Try to create anyway, might fail if already exists
+            console.warn(`[WebDAV Upload] First create attempt failed: ${e.message}, trying again...`);
+            try {
+                await client.createDirectory(remotePath, { recursive: true });
+            } catch (createErr) {
+                console.warn("Create directory error (ignored):", createErr.message);
+            }
         }
 
         const items = fs.readdirSync(localPath);
@@ -248,8 +257,25 @@ module.exports = function (ipcMain, userDataPath) {
             if (stat.isDirectory()) {
                 await uploadDirectoryRecursive(client, itemLocalPath, itemRemotePath);
             } else {
-                const data = fs.readFileSync(itemLocalPath);
-                await client.putFileContents(itemRemotePath, data);
+                console.log(`[WebDAV Upload] Uploading file: ${itemRemotePath}`);
+
+                // Use streaming upload instead of putFileContents for better compatibility
+                try {
+                    const fileStream = fs.createReadStream(itemLocalPath);
+                    const writeStream = client.createWriteStream(itemRemotePath);
+
+                    await new Promise((resolve, reject) => {
+                        fileStream.pipe(writeStream);
+                        writeStream.on('finish', resolve);
+                        writeStream.on('error', reject);
+                        fileStream.on('error', reject);
+                    });
+
+                    console.log(`[WebDAV Upload] Successfully uploaded: ${itemRemotePath}`);
+                } catch (uploadErr) {
+                    console.error(`[WebDAV Upload] Failed to upload ${itemRemotePath}:`, uploadErr);
+                    throw uploadErr;
+                }
             }
         }
     }

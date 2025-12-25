@@ -327,6 +327,38 @@ module.exports = function (ipcMain, userDataPath) {
         }
     });
 
+    ipcMain.handle('gdrive-upload-directory', async (event, remoteDir) => {
+        const client = await getClient();
+        const drive = google.drive({ version: 'v3', auth: client });
+
+        const { filePaths } = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        });
+
+        if (filePaths && filePaths.length > 0) {
+            const localPath = filePaths[0]; // The folder selected by user
+            const folderName = path.basename(localPath);
+
+            try {
+                const parentId = await getFileIdFromPath(drive, remoteDir);
+
+                // Count total files for progress tracking
+                const totalFiles = countFilesInDirectory(localPath);
+                const progressTracker = {
+                    folderName: folderName,
+                    totalFiles: totalFiles,
+                    uploadedFiles: 0
+                };
+
+                await uploadDirectoryRecursive(drive, event, localPath, parentId, progressTracker);
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        }
+        return { success: false, canceled: true };
+    });
+
     ipcMain.handle('gdrive-delete', async (event, remotePath) => {
         const client = await getClient();
         const drive = google.drive({ version: 'v3', auth: client });
@@ -450,7 +482,82 @@ module.exports = function (ipcMain, userDataPath) {
         }
     });
 
-    // Upload Dir not implemented for MVP as requested, but structure allows it.
+    // Helper: Count total files in directory recursively
+    function countFilesInDirectory(dirPath) {
+        let count = 0;
+        const items = fs.readdirSync(dirPath);
+        for (const item of items) {
+            if (item === '.DS_Store') continue;
+            const itemPath = path.join(dirPath, item);
+            const stat = fs.statSync(itemPath);
+            if (stat.isDirectory()) {
+                count += countFilesInDirectory(itemPath);
+            } else {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Helper: Upload Directory Recursively with folder-level progress
+    async function uploadDirectoryRecursive(drive, event, localPath, parentId, progressTracker) {
+        // Create the folder in Google Drive
+        const folderName = path.basename(localPath);
+        const folderMetadata = {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [parentId]
+        };
+
+        const folderRes = await drive.files.create({
+            resource: folderMetadata,
+            fields: 'id'
+        });
+        const newFolderId = folderRes.data.id;
+
+        // Read local directory contents
+        const items = fs.readdirSync(localPath);
+        for (const item of items) {
+            if (item === '.DS_Store') continue; // Skip MacOS junk
+
+            const itemLocalPath = path.join(localPath, item);
+            const stat = fs.statSync(itemLocalPath);
+
+            if (stat.isDirectory()) {
+                // Recursively upload subdirectory
+                await uploadDirectoryRecursive(drive, event, itemLocalPath, newFolderId, progressTracker);
+            } else {
+                // Upload file without individual progress tracking
+                const fileStream = fs.createReadStream(itemLocalPath);
+
+                const media = {
+                    mimeType: 'application/octet-stream',
+                    body: fileStream
+                };
+
+                await drive.files.create({
+                    resource: { name: item, parents: [newFolderId] },
+                    media: media,
+                    fields: 'id'
+                });
+
+                // Update folder-level progress
+                if (progressTracker) {
+                    progressTracker.uploadedFiles++;
+                    const progress = Math.round((progressTracker.uploadedFiles / progressTracker.totalFiles) * 100);
+                    event.sender.send('upload-progress', {
+                        filename: progressTracker.folderName,
+                        progress,
+                        isFolder: true,
+                        current: progressTracker.uploadedFiles,
+                        total: progressTracker.totalFiles
+                    });
+                }
+            }
+        }
+    }
+
+
 
     // NEW: Upload multiple paths (for Drag & Drop)
     ipcMain.handle('gdrive-upload-paths', async (event, params) => {
@@ -465,14 +572,20 @@ module.exports = function (ipcMain, userDataPath) {
 
             for (const localPath of localPaths) {
                 const name = path.basename(localPath);
+                const stat = fs.statSync(localPath);
 
                 // Check if directory
-                if (fs.statSync(localPath).isDirectory()) {
-                    // Recursive upload not fully implemented for GDrive drag&drop yet,
-                    // but we can skip or implement simple folder creation.
-                    // For now, let's skip/error or just warn.
-                    // To support folders, we'd need recursive logic similar to webdav.
-                    // Let's implement single level folder creation for now or skip.
+                if (stat.isDirectory()) {
+                    // Count total files for progress tracking
+                    const totalFiles = countFilesInDirectory(localPath);
+                    const progressTracker = {
+                        folderName: name,
+                        totalFiles: totalFiles,
+                        uploadedFiles: 0
+                    };
+
+                    // Upload directory recursively with progress tracking
+                    await uploadDirectoryRecursive(drive, event, localPath, parentId, progressTracker);
                     continue;
                 }
 

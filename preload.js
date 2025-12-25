@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('api', {
     open: (path) => ipcRenderer.invoke('gdrive-open', path),
     download: (path) => ipcRenderer.invoke('gdrive-download', path),
     uploadFile: (path) => ipcRenderer.invoke('gdrive-upload-file', path),
+    uploadDirectory: (remoteDir) => ipcRenderer.invoke('gdrive-upload-directory', remoteDir),
     uploadPaths: (remoteDir, paths) => ipcRenderer.invoke('gdrive-upload-paths', { remoteDir, localPaths: paths }),
     delete: (path) => ipcRenderer.invoke('gdrive-delete', path),
     rename: (oldPath, newPath) => ipcRenderer.invoke('gdrive-rename', { oldPath, newPath }),
