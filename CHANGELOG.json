@@ -13,11 +13,16 @@
                 "Optimisation du streaming pour les uploads WebDAV",
                 "Meilleure gestion de la création de répertoires sur WebDAV",
                 "Affichage visuel des fichiers en cours de téléchargement avec icônes et spinners",
-                "Invalidation automatique du cache après les opérations de fichiers"
+                "Invalidation automatique du cache après les opérations de fichiers",
+                "🔐 Gestion améliorée des erreurs d'authentification Google Drive avec messages clairs",
+                "Ajout de boutons dédiés pour reconnecter/réinitialiser Google Drive en cas d'erreur",
+                "Amélioration du positionnement du loading overlay",
+                "Ajout d'un script de test pour simuler les erreurs d'authentification GDrive"
             ],
             "fixes": [
                 "Correction de l'affichage des événements 'Journée entière' qui affichaient '01:00 - 01:00'",
-                "Amélioration de la robustesse des uploads de dossiers"
+                "Amélioration de la robustesse des uploads de dossiers",
+                "Correction de la gestion des erreurs d'authentification Google Drive (invalid_grant)"
             ]
         },
         {
